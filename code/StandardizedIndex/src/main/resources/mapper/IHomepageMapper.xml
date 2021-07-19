@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IHomepageDao">
+  <select id="getBlockInfo" resultType="com.sutpc.its.po.BlockInfoPo">
+    select t.block_fid "blockId",a.fname "name",round(sum(t.total_length)/sum(t.total_time)*3.6,1)
+    as "speed",round(avg(t.tpi),2) as "tpi" ,
+    case
+    when round(avg(t.tpi),2) >=8 then '拥堵'
+    when round(avg(t.tpi),2) >=6 then '较拥堵'
+    when round(avg(t.tpi),2) >=4 then '缓行'
+    when round(avg(t.tpi),2) >=2 then '基本畅通'
+    else '畅通' end as "status"
+    from t_tpi_block_status t
+    left join t_base_block a on t.block_fid = a.fid
+    where t.fdate = #{time}
+    and floor((t.period-1)/3+1) = #{period15}
+    group by t.block_fid ,a.fname
+  </select>
+  <select id="getDistrictTpiCharts" resultType="com.sutpc.its.po.DistrictTpiChartsPo">
+    select a.district_fid as "districtId",
+    b.fname as "name",
+    floor((a.period-1)/3+1) as "period",
+    round(avg(a.tpi),2) as "tpi"
+    from T_TPI_DISTRICT_TPI a
+    left join t_base_district b on a.district_fid = b.fid
+    where a.fdate = #{time} and floor((a.period-1)/3+1) &lt;= #{period15} and district_fid in
+    (111,222)
+    group by a.district_fid,b.fname ,floor((a.period-1)/3+1)
+    order by 1,2,3
+  </select>
+  <select id="getJamLengths" resultType="double">
+    select round(sum(t.jam_length),1) "jamLength" from T_TPI_ROAD_JAM_LENGTH t
+    where fdate = #{time} and period_30 = #{period30}
+  </select>
+  <select id="getCrossInfo" resultType="com.sutpc.its.po.CrossInfoPo">
+    select b.fid as "id",
+    b.fname as "name",
+    b.dir_name as "dir",
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) as "speed"
+    from T_TPI_CROSS_SPEED a
+    left join t_tpi_cross b on a.cross_fid = b.fid
+    where a.fdate = #{time} and floor((a.period-1)/3+1) = #{period15}
+    group by b.fid,b.fname,b.dir_name
+  </select>
+  <select id="getJamRoadsectInfo" resultType="com.sutpc.its.po.JamRoadsectInfoPo">
+    select
+    b.fid as "id",
+    b.fname as "name",
+    b.roadsect_from as "from",
+    b.roadsect_to as "to",
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) as "speed"
+    from T_TPI_ROADSECT_SPEED a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    where a.fdate = #{time}
+    and floor((a.period-1)/3+1) = #{period15}
+    group by b.fid,b.fname,b.roadsect_from,b.roadsect_to
+  </select>
+  <select id="getPoiAvgTpi" resultType="com.sutpc.its.po.PoiAvgTpiPo">
+    select round(avg(t.tpi),2) as "tpi" from T_TPI_POI_STATUS t
+    where t.fdate = #{time} and floor((t.period-1)/3+1) = #{period15}
+  </select>
+  <select id="getJamLength" resultType="com.sutpc.its.po.JamLengthInfoPo">
+    select sum(jam_Length) as "jamLength" from T_TPI_ROAD_JAM_LENGTH t
+    where fdate = #{time}
+    and period_30 = #{period30}
+  </select>
+  <select id="getJamList" resultType="com.sutpc.its.po.JamLengthListPo">
+    select a.status as "status",sum(b.jam_length) as "jamLength" from (select a.road_fid ,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as "tpi",
+    case
+    when speedtoconindex(a.speed,b.road_type_fid) >= 8 then '拥堵'
+    when speedtoconindex(a.speed,b.road_type_fid) >= 6 then '较拥堵'
+    end as status
+    from (select a.road_fid ,sum(a.total_length)/sum(a.total_time)*3.6 as speed from
+    T_TPI_ROAD_SPEED a
+    where a.fdate = #{time} and floor((period-1)/6+1) = #{period30}
+    group by a.road_fid) a
+    left join t_base_road b on a.road_fid = b.fid
+    where speedtoconindex(a.speed,b.road_type_fid) >= 6
+    order by 2 desc) a
+    left join
+    (select * from t_tpi_road_jam_length a
+    where a.fdate = #{time} and a.period_30 = #{period30}) b
+    on a.road_fid = b.road_fid
+    group by a.status
+  </select>
+  <select id="getJamLastList" resultType="com.sutpc.its.po.JamLengthListPo">
+    select t.status as status,round(avg(t.jamLength),2) as "jamLength" from (
+    select a.fdate,a.status,sum(b.jam_length) as jamLength from (
+    select a.fdate,a.road_fid ,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as "tpi",
+    case
+    when speedtoconindex(a.speed,b.road_type_fid) >= 8 then '拥堵'
+    when speedtoconindex(a.speed,b.road_type_fid) >= 6 then '较拥堵'
+    end as status
+    from (select a.fdate,a.road_fid ,sum(a.total_length)/sum(a.total_time)*3.6 as speed from
+    T_TPI_ROAD_SPEED a
+    where a.fdate between #{startDate} and #{endDate} and floor((period-1)/6+1) = #{period30}
+    group by a.fdate,a.road_fid) a
+    left join t_base_road b on a.road_fid = b.fid
+    where speedtoconindex(a.speed,b.road_type_fid) >= 6
+    order by 3 desc
+    ) a left join
+    (select * from t_tpi_road_jam_length a
+    where a.fdate between #{startDate} and #{endDate} and a.period_30 = #{period30}) b
+    on a.road_fid = b.road_fid and a.fdate = b.fdate
+    group by a.fdate,a.status
+    ) t group by t.status
+  </select>
+  <select id="getDistrictStatus" resultType="com.sutpc.its.po.DistrictStatusPo">
+    select district_fid as "id",tpi as "tpi" from t_tpi_district_tpi
+    where fdate = #{time} and period = #{period} and district_fid &lt; 100
+  </select>
+</mapper>

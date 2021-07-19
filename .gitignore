@@ -1,0 +1,34 @@
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+data.log
+
+# Mac
+.DS_Store
+
+# Maven
+log/
+target/
+
+# Eclipse
+**/*.project
+**/*.classpath
+**/*.settings
+
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+target
+.idea
+.idea/*
+*.log
+.idea/workspace.xml
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans

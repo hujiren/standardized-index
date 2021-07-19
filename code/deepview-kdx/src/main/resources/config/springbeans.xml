@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	   xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="		
+		http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context-4.2.xsd 
+		http://www.springframework.org/schema/tx
+		http://www.springframework.org/schema/tx/spring-tx-4.2.xsd
+		http://www.springframework.org/schema/aop
+		http://www.springframework.org/schema/aop/spring-aop-4.2.xsd
+		http://www.springframework.org/schema/task
+   	 	http://www.springframework.org/schema/task/spring-task-4.2.xsd">
+	
+	<context:component-scan base-package="com.sutpc" />
+	
+	<!-- 支持异步方法执行 -->
+    <task:annotation-driven />
+	
+	<!-- 切面编程 -->
+	<aop:aspectj-autoproxy/>
+	
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location"><value>classpath:config/db.properties</value></property>
+	</bean>
+	
+	<!-- 阿里 druid数据库连接池 -->	
+	<!-- 多数据源 -->	
+	<bean id="SH1DATA" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">  
+         <!-- 数据库基本信息配置 -->
+         <property name="url" value="${url_testdata}" />  
+         <property name="username" value="${username_sh1data}" />  
+         <property name="password" value="${password_sh1data}" />  
+         <property name="driverClassName" value="${driverClassName_oracle}" />           
+	</bean>
+	
+	<bean id="dataSource" class="com.sutpc.datasource.DynamicDataSource">  
+	    <property name="targetDataSources">  
+	        <map key-type="java.lang.String">  
+	        	<entry value-ref="SH1DATA" key="SH1DATA"></entry>
+	        </map>  
+	    </property>  
+	    <property name="defaultTargetDataSource" ref="SH1DATA"></property>      <!-- 默认使用的数据源 -->
+	</bean>
+	
+	<!-- 
+		mybatis的SqlSession的工厂: SqlSessionFactoryBean 
+	-->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource"/>
+	</bean>
+
+	<!-- 
+	    mybatis自动扫描加载Sql映射文件 : MapperScannerConfigurer 
+	-->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.sutpc.dao"/>
+	</bean> 
+	
+	<!-- 事务管理 : DataSourceTransactionManager -->
+	<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"/>
+	</bean> 
+
+	<!-- 使用声明式事务 -->
+	<tx:annotation-driven transaction-manager="txManager" />
+	
+	<!--要调度的对象-->
+    <bean id="jobBean" class="com.sutpc.quartz.TimerTask" />
+    <bean id="jobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+        <property name="targetObject" ref="jobBean" />
+        <property name="targetMethod" value="execute" /><!-- 执行"jobBean"中的execute方法 -->
+        <!--将并发设置为false-->
+        <property name="concurrent" value="false" />
+    </bean>
+
+    <bean id="trigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean"><!-- 定义 Job 何时执行 -->
+        <property name="jobDetail" ref="jobDetail" />
+        <!--表达式，30s 执行一次-->
+        <property name="cronExpression" value="0/30 * * * * ?" /><!-- “ 0 0 12 * * ? ”会在每天中午 12 点触发 执行；“ 0 15 10 ? * 6L ”会在每个月的最后一个星期五的早上 10:15 触发 Job 执行 -->
+    </bean>
+
+    <!--  总管理类如果将lazy-init='false'那么容器启动就会执行调度程序   -->
+    <bean id="startQuertz" class="org.springframework.scheduling.quartz.SchedulerFactoryBean" lazy-init="true" >
+        <property name="triggers">
+            <list>
+                <!--作业调度器,list下可加入其他的调度器-->
+                <ref bean="trigger" />
+            </list>
+        </property>
+    </bean>
+    
+    
+	
+	
+	<bean id="aspectBean" class="com.sutpc.aop.ServiceAop"></bean>
+	
+</beans>
+	
+	

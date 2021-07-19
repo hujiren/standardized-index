@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IApiDao">
+  <select id="getRoadOperationMonitoringNow" parameterType="map" resultType="map">
+    select
+    a.roadsect_fid roadsect_id ,
+    b.fname roadsect_name ,
+    b.roadsect_from ,
+    b.roadsect_to ,
+    c.fname dirname ,
+    b.road_type_fid type ,
+    round(a.total_length/a.total_time*3.6,1) speed ,
+    round(speedtoconindex(round(a.total_length/a.total_time*3.6,1),b.road_type_fid),2) conindex
+    from t_tpi_roadsect_speed a
+    left join t_base_roadsect b on a.roadsect_fid=b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and fdate = #{time}
+    and period = #{period}
+  </select>
+  <select id="getBlockMonitoringNow" resultType="map" parameterType="map">
+    select
+    a.block_fid blockid ,
+    b.fname name ,
+    a.tpi conindex ,
+    round(a.total_length/a.total_time*3.6,1) speed
+    from t_tpi_block_status a
+    left join t_base_block b on a.block_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <sql id="sql_period">
+    <if test="timeprecision == 'morning_peak'">
+      <![CDATA[ and t.period >= 85 and t.period <= 108 ]]>
+    </if>
+    <if test="timeprecision == 'evening_peak'">
+      <![CDATA[ and t.period >= 211 and t.period <= 234]]>
+    </if>
+    <if test="timeprecision == 'all_peak'">
+      <![CDATA[and ((t.period >= 85 and t.period <= 108 ) or (t.period >= 211 and t.period <= 234))]]>
+    </if>
+  </sql>
+  <sql id="sql_time">
+    <if test="timeflag == 'current_month'">
+      <![CDATA[ and t.fdate between to_number(substr(#{time},1,6)||'00') and to_number(substr(#{time},1,6)||'31')]]>
+    </if>
+    <if test="timeflag == 'current_month_tb'">
+      <![CDATA[ and t.fdate between to_number(substr(#{time},1,6)||'00') and to_number(substr(#{time},1,6)||'31')]]>
+    </if>
+    <if test="timeflag == 'current_year_total'">
+      <![CDATA[ and t.fdate >= #{startdate} and t.fdate <= #{enddate}]]>
+    </if>
+    <if test="timeflag == 'last_year'">
+      <![CDATA[ and t.fdate between to_number(#{year}||'0000') and to_number(#{year}||'1231')]]>
+    </if>
+  </sql>
+  <select id="getCitywideSpeedData" resultType="map" parameterType="map">
+    select round(sum(t.total_length)/sum(t.total_time)*3.6,1) "speed" from t_tpi_district_speed t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1=1
+    and t1.is_workday = 1
+    and t.district_fid = 111
+    and t.road_type_fid in (2,3,4,5)
+    <include refid="sql_time"/>
+    <include refid="sql_period"/>
+  </select>
+  <select id="getRoadsectPredictStatusByHour" parameterType="map" resultType="map">
+    select
+    a.roadsect_fid roadsect_id ,
+    floor((a.period-1)/12+1) predictperiod ,
+    round(avg(a.speed),1) speed ,
+    round(speedtoconindex(avg(a.speed),avg(b.road_type_fid)),2) conindex
+    from t_tpi_roadsect_prediction a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    group by a.roadsect_fid,floor((a.period-1)/12+1)
+    order by a.roadsect_fid,floor((a.period-1)/12+1)
+  </select>
+  <select id="getLinkDataForTGis" resultType="map" parameterType="map">
+    select
+    b.fid linkid ,
+    b.from_node fromnode ,
+    b.to_node tonode ,
+    round(a.total_length/a.total_time*3.6,1) speed ,
+    round(speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid),2) conindex ,
+    case
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 8 then 5
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 6 then 4
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 4 then 3
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 2 then 2
+    else 1 end conclass
+    from t_tpi_link_speed a
+    left join t_base_link b on a.link_fid = b.fid and a.from_node = b.from_node and a.to_node =
+    b.to_node
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and b.road_type_fid not in (6,7,93)
+    and a.total_length > 10
+    and a.total_time > 4
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <select id="getRealTimeSectStatus" parameterType="map" resultType="map">
+    select
+    a.subsect_fid oid ,
+    b.fname sectname ,
+    round(a.total_length/a.total_time*3.6,1) avgspeed ,
+    round(a.tpi,2) conindex ,
+    case when a.tpi >= 8 then '拥堵'
+    when a.tpi >= 6 then '较拥堵'
+    when a.tpi >= 4 then '缓行'
+    when a.tpi >= 2 then '基本畅通'
+    else '畅通' end constatus ,
+    case when a.tpi >= 8 then 5
+    when a.tpi >= 6 then 4
+    when a.tpi >= 4 then 3
+    when a.tpi >= 2 then 2
+    else 1 end conclass
+    from t_tpi_subsect_status a
+    left join t_base_subsect b on a.subsect_fid = b.fid
+    where 1=1
+    and a.tpi > 0
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <select id="getRealTimeRoadConIndex" resultType="map" parameterType="map">
+    select b.fname name,
+    c.fname dir,
+    round(a.total_length / a.total_time * 3.6, 1) avgspeed,
+    round(speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid), 2) conindex,
+    case
+    when speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid) >= 8 then 5
+    when speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid) >= 6 then 4
+    when speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid) >= 4 then 3
+    when speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid) >= 2 then 2
+    else 1 end conclass
+    from t_tpi_road_speed a
+    left join t_base_road b on a.road_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1 = 1
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <select id="getRealTimeTotalConIndex" parameterType="map" resultType="map">
+    select
+    a.district_fid oid ,
+    c.fname name ,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed ,
+    round(avg(b.tpi),2) conindex ,
+    case when avg(b.tpi) >= 8 then 5
+    when avg(b.tpi) >= 6 then 4
+    when avg(b.tpi) >= 4 then 3
+    when avg(b.tpi) >= 2 then 2
+    else 1 end conclass
+    from t_tpi_district_speed a
+    left join t_tpi_district_tpi b on a.fdate = b.fdate and a.period = b.period and a.district_fid =
+    b.district_fid
+    left join t_base_district c on a.district_fid = c.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and c.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+    and a.road_type_fid in (2,3,4,5)
+    group by a.district_fid,c.fname
+  </select>
+  <select id="getDistrictStatusNow" resultType="map" parameterType="map">
+    select
+    a.district_fid district_id ,
+    c.fname district_name,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed ,
+    round(avg(b.tpi),2) conindex
+    from t_tpi_district_speed a
+    left join t_tpi_district_tpi b on a.fdate = b.fdate and a.period = b.period and a.district_fid =
+    b.district_fid
+    left join t_base_district c on a.district_fid = c.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != '' and config_district_fid[0] != ''">
+      and c.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+    and a.road_type_fid in (2,3,4,5)
+    group by a.district_fid,c.fname
+  </select>
+  <select id="getDistrictExptHis" parameterType="map" resultType="map">
+    select
+    a.district_fid district_id ,
+    b.fname district_name ,
+    floor((a.period-1)/12+1) hour ,
+    round(avg(a.tpi),2) conindex
+    from t_tpi_district_tpi a
+    left join t_base_district b on a.district_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.district_fid,b.fname,floor((a.period-1)/12+1)
+    order by a.district_fid,floor((period-1)/12+1)
+  </select>
+  <select id="getDistrictSpeedHis" resultType="map" parameterType="map">
+    select
+    a.district_fid district_id ,
+    b.fname district_name ,
+    floor((a.period-1)/12+1) hour ,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed
+    from t_tpi_district_speed a
+    left join t_base_district b on a.district_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.district_fid,b.fname,floor((a.period-1)/12+1)
+    order by a.district_fid,floor((period-1)/12+1)
+  </select>
+  <select id="getSubsectStatusNow" parameterType="map" resultType="map">
+    select
+    a.subsect_fid subsect_id ,
+    b.fname subsect_name ,
+    round(a.tpi,2) conindex ,
+    round(a.total_length/a.total_time*3.6,1) avgspeed
+    from t_tpi_subsect_status a
+    left join t_base_subsect b on a.subsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <select id="getSubsectStatusHis" resultType="map" parameterType="map">
+    select
+    a.subsect_fid subsect_id ,
+    b.fname subsect_name ,
+    floor((a.period-1)/12+1) hour ,
+    round(avg(a.tpi),2) conindex,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed
+    from t_tpi_subsect_status a
+    left join t_base_subsect b on a.subsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.subsect_fid,b.fname,floor((a.period-1)/12+1)
+    order by a.subsect_fid,floor((a.period-1)/12+1)
+  </select>
+  <select id="getRoadStatusNow" parameterType="map" resultType="map">
+    select a.road_fid road_id,
+    b.fname road_name,
+    c.fname road_dir,
+    b.road_type_fid road_type,
+    round(speedtoconindex(a.total_length / a.total_time * 3.6, b.road_type_fid), 2) conindex,
+    round(a.total_length / a.total_time * 3.6, 1) avgspeed
+    from t_tpi_road_speed a
+    left join t_base_road b on a.road_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1 = 1
+    and a.fdate = #{time}
+    and a.period = #{period}
+    order by a.road_fid
+
+  </select>
+  <select id="getRoadStatusHis" resultType="map" parameterType="map">
+    select a.road_fid road_id,
+    b.fname road_name,
+    c.fname road_dir,
+    floor((a.period - 1) / 12 + 1) hour,
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) avgspeed
+    from t_tpi_road_speed a
+    left join t_base_road b on a.road_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1 = 1
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.road_fid, b.fname, c.fname, floor((a.period - 1) / 12 + 1)
+    order by a.road_fid
+  </select>
+  <select id="getRoadsectPredictStatus" parameterType="map" resultType="map">
+    select
+    distinct
+    a.roadsect_fid roadsect_id ,
+    a.predict_period predictperiod ,
+    a.speed gospeed
+    from t_tpi_roadsect_prediction a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time} and a.period = #{period}
+    order by a.roadsect_fid,a.predict_period
+  </select>
+  <select id="getDistrictBusStatusNow" resultType="map" parameterType="map">
+    select
+    a.district_fid district_id ,
+    b.fname district_name ,
+    round(a.total_length/a.total_time*3.6,1) avgspeed
+    from t_bus_district_speed a
+    left join t_base_district b on a.district_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+
+  </select>
+  <select id="getDistrictBusCarStatusHis" parameterType="map" resultType="map">
+    select
+    a.district_fid district_id ,
+    b.fname district_name ,
+    floor((a.period-1)/12+1) hour,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed
+    from t_tpi_district_buslane_speed a
+    left join t_base_district b on a.district_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.district_fid,b.fname,floor((a.period-1)/12+1)
+    order by a.district_fid,b.fname,floor((a.period-1)/12+1)
+  </select>
+  <select id="getSubsectBusStatusNow" resultType="map" parameterType="map">
+    select
+    a.subsect_fid subsect_id ,
+    b.fname subsect_name ,
+    round(a.total_length/a.total_time*3.6,1) avgspeed
+    from t_tpi_subsect_status a
+    left join t_base_subsect b on a.subsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+  <select id="getSubsectBusCarStatusHis" parameterType="map" resultType="map">
+    select
+    a.subsect_fid subsect_id ,
+    b.fname subsect_name ,
+    floor((a.period-1)/12+1) hour ,
+    round(sum(a.total_length)/sum(a.total_time)*3.6,1) avgspeed
+    from t_tpi_subsect_status a
+    left join t_base_subsect b on a.subsect_fid = b.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.subsect_fid,b.fname,floor((a.period-1)/12+1)
+    order by a.subsect_fid,b.fname,floor((a.period-1)/12+1)
+  </select>
+  <select id="getBusLaneBusCarStatusHis" resultType="map" parameterType="map">
+    select a.buslane_fid road_id,
+    b.fname road_name,
+    c.fname road_dir,
+    floor((a.period - 1) / 12 + 1) hour,
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) avgspeed
+    from t_tpi_road_buslane_speed a
+    left join t_base_buslane b on a.buslane_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1 = 1
+    and a.fdate = #{time}
+    and a.period &lt;= #{period}
+    group by a.buslane_fid, b.fname, c.fname, floor((a.period - 1) / 12 + 1)
+    order by a.buslane_fid, b.fname, c.fname, floor((a.period - 1) / 12 + 1)
+  </select>
+  <select id="getRealTimeRoadSectMidStatus" parameterType="map" resultType="map">
+    select
+    b.district_fid sect,
+    a.roadsect_fid roadsect_id ,
+    b.fname roadsect_name ,
+    b.roadsect_from roadsect_from ,
+    b.roadsect_to roadsect_to ,
+    c.fname dirname ,
+    b.road_fid road_id ,
+    a.period period ,
+    round(a.total_length/a.total_time*3.6,1) speed,
+    round(speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid),2) conindex ,
+    case when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 8 then 5
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 6 then 4
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >=4 then 3
+    when speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid) >= 2 then 2
+    else 1 end conclass
+    from t_tpi_roadsect_speed a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.fdate = #{time}
+    and a.period = #{period}
+  </select>
+
+
+  <sql id="sql_fdate">
+    <if test="startdate != null and startdate != ''">
+      and t.fdate &gt;= #{startdate}
+    </if>
+    <if test="startdate == null">
+      and t.fdate &gt;= 20170101
+    </if>
+    <if test="enddate != null and enddate != ''">
+      and t.fdate &lt;= #{enddate}
+    </if>
+    <if test="enddate ==null ">
+      and t.fdate &lt;= #{time}
+    </if>
+  </sql>
+  <sql id="sql_dateproperty">
+    <if test='dateproperty == "1"'>
+      <![CDATA[and t1.is_workday = 1  ]]>
+    </if>
+    <if test='dateproperty == "0"'>
+      <![CDATA[and t1.is_workday = 0 ]]>
+    </if>
+  </sql>
+  <select id="getDistrictTpiAndSpeedGroupByMonth" resultType="map" parameterType="map">
+    select substr(t.fdate, 1, 6) as "time",
+    b.fname as "district_name",
+    round(avg(a.tpi), 1) as "tpi",
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "speed"
+    from t_tpi_district_speed t
+    left join t_tpi_district_tpi a on t.fdate = a.fdate
+    and t.period = a.period
+    and t.district_fid = a.district_fid
+    left join t_base_district b on t.district_fid = b.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+
+    <include refid="sql_dateproperty"/>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and t.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 6), b.fname
+    order by b.fname
+
+
+  </select>
+  <select id="getDistrictTpiAndSpeedGroupByYear" resultType="map" parameterType="map">
+    select substr(t.fdate, 1, 4) "time",
+    b.fname "district_name",
+    round(avg(a.tpi), 1) "tpi",
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) "speed"
+    from t_tpi_district_speed t
+    left join t_tpi_district_tpi a on t.fdate = a.fdate
+    and t.period = a.period
+    and t.district_fid = a.district_fid
+    left join t_base_district b on t.district_fid = b.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+
+    <include refid="sql_dateproperty"/>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and t.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 4), b.fname
+    order by b.fname
+  </select>
+  <select id="getBlokcTpiAndSpeedGroupByMonth" parameterType="map" resultType="map">
+    select substr(t.fdate, 1, 6) "time",
+    a.fname "block_name",
+    round(avg(t.tpi), 1) "tpi",
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) "speed"
+    from t_tpi_block_status t
+    left join t_base_block a on t.block_fid = a.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <include refid="sql_dateproperty"/>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 6), a.fname
+    order by a.fname
+
+  </select>
+  <select id="getBlokcTpiAndSpeedGroupByYear" parameterType="map" resultType="map">
+    select substr(t.fdate, 1, 4) "time",
+    a.fname "block_name",
+    round(avg(t.tpi), 1) "tpi",
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) "speed"
+    from t_tpi_block_status t
+    left join t_base_block a on t.block_fid = a.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <include refid="sql_dateproperty"/>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 4), a.fname
+    order by a.fname
+  </select>
+  <select id="getRoadTpiAndSpeedGroupByMonth" resultType="map" parameterType="map">
+    select substr(t.fdate, 1, 6) "time",
+    a.fname "road_name",
+    b.fname "dir_name",
+    round(avg(t.speed), 1) "speed",
+    round(speedtoconindex(avg(t.speed), avg(a.road_type_fid)), 1) "tpi"
+    from t_tpi_road_speed t
+    left join t_base_road a on t.road_fid = a.fid
+    left join t_base_direction b on a.dir_fid = b.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_dateproperty"/>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 6), a.fname, b.fname
+    order by a.fname, b.fname
+  </select>
+  <select id="getRoadTpiAndSpeedGroupByYear" resultType="map" parameterType="map">
+    select substr(t.fdate, 1, 4) "time",
+    a.fname "road_name",
+    b.fname "dir_name",
+    round(avg(t.speed), 1) "speed",
+    round(speedtoconindex(avg(t.speed), avg(a.road_type_fid)), 1) "tpi"
+    from t_tpi_road_speed t
+    left join t_base_road a on t.road_fid = a.fid
+    left join t_base_direction b on a.dir_fid = b.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_dateproperty"/>
+    <include refid="sql_fdate"/>
+    <include refid="sql_period"/>
+    group by substr(t.fdate, 1, 4), a.fname, b.fname
+    order by a.fname, b.fname
+  </select>
+  <select id="getIntersectionDelayDataByMonth" resultType="map" parameterType="map">
+    select a.year,
+    a.month,
+    a.INTERSECTION_FID,
+    a.FROM_APPROACH_FID,
+    b.road_name as from_name,
+    b.APPROACH_DIR as from_dir,
+    a.TO_APPROACH_FID,
+    c.road_name as to_name,
+    c.APPROACH_DIR as to_dir,
+    a.TURNING_DIR,
+    a.delay_time
+    from (select to_number(SUBSTR(TO_CHAR(fdate), 1, 4)) as year,
+    to_number(SUBSTR(TO_CHAR(fdate), 5, 2)) month,
+    INTERSECTION_FID,
+    FROM_APPROACH_FID,
+    TO_APPROACH_FID,
+    delay_time,
+    TURNING_DIR
+    from (SELECT fdate,
+    INTERSECTION_FID,
+    FROM_APPROACH_FID,
+    TO_APPROACH_FID,
+    round(avg(DELAY_TIME), 2) as delay_time,
+    TURNING_DIR
+    FROM "T_TPI_INTERSECTION_DELAY"
+    where 1 = 1
+    and fdate &gt;= #{startdate}
+    and fdate &lt;= #{enddate}
+    and TURNING_DIR != '掉头'
+    group by fdate,
+    INTERSECTION_FID,
+    FROM_APPROACH_FID,
+    TO_APPROACH_FID,
+    TURNING_DIR
+    order by fdate,
+    INTERSECTION_FID,
+    FROM_APPROACH_FID,
+    TO_APPROACH_FID,
+    TURNING_DIR) t
+    where DELAY_TIME &lt;= 180) a
+    left join T_BASE_INTERSECTION_APPROACH b on a.FROM_APPROACH_FID = b.FID
+    left join T_BASE_INTERSECTION_APPROACH c on a.TO_APPROACH_FID = c.FID
+    order by a.year,
+    a.month,
+    a.INTERSECTION_FID,
+    a.FROM_APPROACH_FID,
+    b.road_name,
+    b.APPROACH_DIR,
+    a.TO_APPROACH_FID,
+    c.road_name,
+    c.APPROACH_DIR,
+    a.TURNING_DIR
+  </select>
+
+  <select id="getIntersectionInfo" resultType="map" parameterType="map">
+    select substr(to_char(fdate), 1, 6) "month",
+    t.fname "fname",
+    t.fid "fid",
+    t.intersection_lng "lng",
+    t.intersection_lat "lat",
+    round(avg(y.delay_time), 1) "delay_time"
+    from t_tpi_intersection_delay y
+    left join t_base_intersection t on y.intersection_fid = t.fid
+    where y.fdate >= #{startdate}
+    and y.fdate &lt;= #{enddate}
+    group by substr(to_char(fdate), 1, 6), t.fname, t.fid, t.intersection_lng, t.intersection_lat
+    order by t.fid
+  </select>
+
+  <select id="getRealTimeBusLaneSpeed" resultType="map" parameterType="map">
+    select buslane_fid as "buslaneId",
+    speed as "speed",
+    case
+    when speed >= 25 then '畅通'
+    when speed >= 22 then '基本畅通'
+    when speed >= 19 then '缓行'
+    when speed >= 16 then '较拥堵'
+    else '拥堵' end as "status"
+    from t_tpi_road_buslane_speed
+    where fdate = #{time}
+    and period = #{period}
+    order by 1
+  </select>
+  <select id="getDistrictDayTpi" resultType="com.sutpc.its.po.DistrictDayTpiPo">
+    select * from (
+    select b.fid as "id",b.fname as "name",
+    floor((a.period - 1) / 3 + 1) "period",
+    round(avg(a.tpi), 2) "tpi"
+    from t_tpi_district_tpi a
+    left join t_base_district b on a.district_fid = b.fid
+    where a.fdate = #{time}
+    and floor((a.period-1)/3+1) &lt;= #{period15}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    group by b.fid,b. fname, floor((a.period - 1) / 3 + 1)
+    order by b.fid,b.fname, floor((a.period - 1) / 3 + 1)
+    )
+  </select>
+  <select id="getDistrictJamLength" resultType="com.sutpc.its.po.DistrictJamLengthPo">
+    select
+    b.fname as "name",
+    b.fid as "id",
+    round(avg(a.jam_length),2) as "jamLength"
+    from t_tpi_district_jam_ratio a
+    left join t_base_district b on a.district_fid = b.fid
+    where
+    fdate = #{time} and period = #{period}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    and a.road_type_fid in (2,3,4,5)
+    group by b.fname,b.fid
+  </select>
+  <select id="getRoadSectionInfo" resultType="com.sutpc.its.po.RoadSectionInfoEntity">
+    select
+    a.fid as "id",
+    a.fname as "name" ,
+    b.fname as "dir",
+    roadsect_from as "from",
+    roadsect_to as "to"
+    from t_base_roadsect a
+    left join t_base_direction b on a.dir_fid = b.fid
+  </select>
+  <select id="getRoadSectionInfoBySevenDay" resultType="com.sutpc.its.po.RoadSectionSpeedByDayPo">
+    select a.fdate as "time",a.roadsect_fid as "id",floor((a.period-1)/3+1) as
+    "period",round(sum(a.total_length)/sum(a.total_time)*3.6,1) as "speed" from t_tpi_roadsect_speed
+    a
+    where fdate between #{startDate} and #{endDate}
+    and roadsect_fid = #{id}
+    group by a.fdate,a.roadsect_fid,floor((a.period-1)/3+1)
+    order by a.fdate,a.roadsect_fid,floor((a.period-1)/3+1)
+  </select>
+
+  <select id="getPoiInfoNow" resultType="com.sutpc.its.po.PoiInfoNowPo">
+    select
+    a.fdate "time",
+    a.period as "period",
+    b.fid as "id",
+    b.fname as "name",
+    b.poi_category as "category",
+    round(a.total_length/a.total_time*3.6,1) as "speed",
+    a.tpi as "tpi"
+    from t_tpi_poi_status a
+    left join t_base_poi b on a.poi_fid = b.fid
+    where
+    a.fdate = #{time}
+    and a.period = #{period}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+
+  <select id="getRoadJamLength" resultType="com.sutpc.its.po.RoadJamLengthPo">
+    select
+    distinct
+    a.road_fid as "roadId",
+    b.fname as "roadName",
+    d.fname as "dir",
+    a.jam_length as "jamLength"
+    from t_tpi_road_jam_length a
+    left join t_base_road b on a.road_fid = b.fid
+    left join t_base_roadsect c on b.fid = c.road_fid
+    left join t_base_direction d on b.dir_fid = d.fid
+    where a.fdate = #{time} and a.period_30=#{period30}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and c.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+</mapper>

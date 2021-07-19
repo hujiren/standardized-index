@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleDistrictOverviewDao">
+  <!-- 全区路网高峰平均速度 -->
+  <select id="getAllPeakAverageSpeed" resultType="double">
+    --区域 district_fid
+    --道路类型 2,3,4,5
+    --高峰时段 早高峰（85,108） 晚高峰（211,234）
+    select COALESCE(sum(t.total_length) / sum(t.total_time) * 3.6, 0) speed
+    from t_tpi_district_speed t
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) a on a.fdate = t.fdate
+    where t.district_fid = #{districtFid}
+    and t.road_type_fid in (2, 3, 4, 5)
+    and (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}
+  </select>
+
+  <!-- 全区路网高峰指数 -->
+  <select id="getAllPeakTpi" resultType="double">
+    select coalesce(avg(t.tpi), 0) tpi
+    from t_tpi_district_tpi t
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) a on a.fdate = t.fdate
+    where t.district_fid = #{districtFid}
+    and (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}
+  </select>
+
+  <!-- 全路网高峰最大速度值日期与速度 -->
+  <select id="getWorkDayPeakMaxInfo" resultType="com.sutpc.its.po.WorkDayPeakInfoPo">
+    select *
+    from (select t.fdate "date", sum(t.total_length) / sum(t.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_district_speed a
+    where a.district_fid = #{districtFid}
+    and (a.period between 85 and 108 or
+    a.period between 211 and 234)
+    and a.fdate between #{startDate} and #{endDate}) t
+    left join (select * from t_base_date_list b where b.is_workday = 1) y on t.fdate =
+    y.fdate
+    group by t.fdate
+    order by sum(t.total_length) / sum(t.total_time) * 3.6 desc) t
+    where rownum = 1
+  </select>
+
+  <!-- 全路网高峰最小速度值日期与速度 -->
+  <select id="getWorkDayPeakMinInfo" resultType="com.sutpc.its.po.WorkDayPeakInfoPo">
+    select *
+    from (select t.fdate "date", sum(t.total_length) / sum(t.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_district_speed a
+    where a.district_fid = #{districtFid}
+    and (a.period between 85 and 108 or
+    a.period between 211 and 234)
+    and a.fdate between #{startDate} and #{endDate}) t
+    left join (select * from t_base_date_list b where b.is_workday = 1) y on t.fdate =
+    y.fdate
+    group by t.fdate
+    order by sum(t.total_length) / sum(t.total_time) * 3.6) t
+    where rownum = 1
+  </select>
+
+
+  <!-- 缓行及以上街道数量 -->
+  <select id="getSlowCount" resultType="int">
+    select count(*) "value"
+    from (select a.block_fid, round(avg(a.tpi), 1) tpi
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    inner join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    left join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid
+    having avg(a.tpi) >= 4)
+  </select>
+
+  <!-- 畅通及基本畅通街道数量 -->
+  <select id="getUnimpededCount" resultType="int">
+    select count(*) "value"
+    from (select a.block_fid, round(avg(a.tpi), 1) tpi
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    inner join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    left join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid
+    having avg(a.tpi) &lt; 4)
+  </select>
+
+  <!-- 获取交通压力最大的街道的相关信息 -->
+  <select id="getMaxBlockInfo" resultType="com.sutpc.its.po.WorkDayPeakExtremaBlockInfoPo">
+    select *
+    from (select a.block_fid "id",
+    b.fname as "name",
+    avg(a.tpi) "tpi",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    inner join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    left join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid, b.fname
+    order by round(avg(a.tpi), 1) desc)
+    where rownum = 1
+  </select>
+
+  <!-- 获取交通压力最小（畅通）的街道的相关信息 -->
+  <select id="getMinBlockInfo" resultType="com.sutpc.its.po.WorkDayPeakExtremaBlockInfoPo">
+    select *
+    from (select a.block_fid "id",
+    b.fname as "name",
+    avg(a.tpi) "tpi",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    inner join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    left join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid, b.fname
+    order by round(avg(a.tpi), 1))
+    where rownum = 1
+  </select>
+
+
+  <!-- 热点-工作日高峰时段最大指数信息 -->
+  <select id="getPeakMaxHotSpotTpi" resultType="com.sutpc.its.po.PeakHotPotPo">
+    select *
+    from (select b.poi_category "poiName", avg(a.tpi) "tpi"
+    from (select *
+    from t_tpi_poi_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) a
+    inner join (select * from t_base_poi where district_fid = #{districtFid}) b
+    on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where
+    fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.poi_category
+    order by avg(a.tpi) desc)
+    where rownum = 1
+  </select>
+
+  <!-- 热点-工作日高峰时段最小指数信息 -->
+  <select id="getPeakMinHotSpotTpi" resultType="com.sutpc.its.po.PeakHotPotPo">
+    select *
+    from (select b.poi_category "poiName", avg(a.tpi) "tpi"
+    from (select *
+    from t_tpi_poi_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) a
+    inner join (select * from t_base_poi where district_fid = #{districtFid}) b
+    on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.poi_category
+    order by avg(a.tpi))
+    where rownum = 1
+  </select>
+
+  <!-- 获取快速路信息 -->
+  <select id="getFastInfo" resultType="com.sutpc.its.dto.RoadSectionInfoDto">
+    select b.fid "id",
+    b.fname "name",
+    b.roadsect_from "from",
+    b.roadsect_to "to",
+    c.fname "dirName",
+    b.road_type_fid "typeId",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed t
+    where (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect t
+    where t.district_fid = #{districtFid}
+    and t.road_type_fid = 2) b on a.roadsect_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) d on a.fdate = d.fdate
+    group by b.fid,
+    b.fname,
+    b.roadsect_from,
+    b.roadsect_to,
+    c.fname,
+    b.road_type_fid
+  </select>
+
+  <!-- 获取主干路信息 -->
+  <select id="getMainInfo" resultType="com.sutpc.its.dto.RoadSectionInfoDto">
+    select b.fid "id",
+    b.fname "name",
+    b.roadsect_from "from",
+    b.roadsect_to "to",
+    c.fname "dirName",
+    b.road_type_fid "typeId",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed t
+    where (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect t
+    where t.district_fid = #{districtFid}
+    and t.road_type_fid = 3) b on a.roadsect_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) d on a.fdate = d.fdate
+    group by b.fid,
+    b.fname,
+    b.roadsect_from,
+    b.roadsect_to,
+    c.fname,
+    b.road_type_fid
+  </select>
+
+  <!-- 获取次干路信息 -->
+  <select id="getSubInfo" resultType="com.sutpc.its.dto.RoadSectionInfoDto">
+    select b.fid "id",
+    b.fname "name",
+    b.roadsect_from "from",
+    b.roadsect_to "to",
+    c.fname "dirName",
+    b.road_type_fid "typeId",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed t
+    where (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect t
+    where t.district_fid = #{districtFid}
+    and t.road_type_fid = 4) b on a.roadsect_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) d on a.fdate = d.fdate
+    group by b.fid,
+    b.fname,
+    b.roadsect_from,
+    b.roadsect_to,
+    c.fname,
+    b.road_type_fid
+  </select>
+
+  <!-- 主干道工作日高峰时段平均速度 -->
+  <select id="getMainRoadSectionSpeed" resultType="Double">
+    select sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed
+    where (period between 85 and 108 or period between 211 and 234)
+    and fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect
+    where district_fid = #{districtFid}
+    and road_type_fid = 3) b on a.roadsect_fid = b.fid
+    inner join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+  </select>
+
+  <!-- 获取主干道工作日高峰列表信息，用于计算最大最小环比值等信息 -->
+  <select id="getMainRoadSectionInfo" resultType="com.sutpc.its.dto.RoadSectionInfoDto">
+    select b.fid "id",b.fname "name",b.roadsect_from "from",b.roadsect_to "to",d.fname
+    "dirName",b.road_type_fid "typeId",sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed
+    where (period between 85 and 108 or period between 211 and 234)
+    and fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect
+    where district_fid = #{districtFid}
+    and road_type_fid = 3) b on a.roadsect_fid = b.fid
+    inner join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    left join t_base_direction d on b.dir_fid = d.fid
+    group by b.fid,b.fname,b.roadsect_from ,b.roadsect_to,d.fname,b.road_type_fid
+  </select>
+
+
+</mapper>

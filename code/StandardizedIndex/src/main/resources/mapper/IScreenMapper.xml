@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IScreenDao">
+
+  <select id="getRealTimeDistrictSpeedAndTpi" parameterType="map" resultType="map">
+    select (select COALESCE(round(sum(a.total_length) / sum(a.total_time) * 3.6, 1),0.0)
+    from t_tpi_district_speed a
+    where a.fdate = #{time}
+    and a.period = #{period}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <if test="calender_road_type_fid != null and calender_road_type_fid != ''">
+      and a.road_type_fid in
+      <foreach collection="calender_road_type_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    ) as "speed",
+    (select COALESCE(round(avg(b.tpi), 2),0.00)
+    from t_tpi_district_tpi b
+    where b.fdate = #{time}
+    and b.period = #{period}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    ) as "tpi",
+    (select COALESCE(round(avg(t.jam_length), 1),0.0) as "jamLength"
+    from t_tpi_district_jam_length t
+    where t.fdate = #{time}
+    and t.period_30 = #{period30}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and t.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <if test="calender_road_type_fid != null and calender_road_type_fid != ''">
+      and t.road_type_fid in
+      <foreach collection="calender_road_type_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    ) as "jamLength",
+    coalesce ((select round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) speed
+    from t_bus_district_speed t
+    where t.fdate = #{time}
+    and t.period = #{period}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and t.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    ),0) as "busSpeed"
+    from dual
+  </select>
+  <select id="getLateseTime" resultType="map">
+    select max(fdate) as "fdate", max(period) "period"
+    from t_tpi_district_speed
+    where fdate = (select max(fdate) from t_tpi_district_speed)
+  </select>
+
+  <select id="getKeyAreaData" resultType="map" parameterType="map">
+    select floor((a.period - 1) / 3 + 1) as "period",
+    a.poi_fid as "poi_fid",
+    b.tx_fid as "tx_id",
+    b.fname "fname",
+    b.poi_category "poi_category",
+    b.poi_lng as "lng",
+    b.poi_lat as "lat",
+    round(avg(a.tpi), 2) as "tpi",
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) as "speed"
+    from t_tpi_poi_status a
+    left join t_base_poi b on a.poi_fid = b.fid
+    where a.fdate = #{time}
+    and floor((a.period - 1) / 3 + 1) = #{period15}
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    group by floor((a.period - 1) / 3 + 1),
+    a.poi_fid,
+    b.tx_fid,
+    b.fname,
+    b.poi_category,
+    b.poi_lng,
+    b.poi_lat
+  </select>
+  <select id="getRealTimeJamRoad" resultType="com.sutpc.its.vo.RoadJamVo">
+    select t.*,rownum from
+    (select
+    t.roadname "roadName",
+    t.dirname "dirName",
+    round(t.speed,1) "speed",
+    round(speedtoconindex(t.speed,t.type),2) "tpi",
+    case
+    when round(speedtoconindex(t.speed,t.type),2) >= 8 then '拥堵'
+    when round(speedtoconindex(t.speed,t.type),2) >= 6 then '较拥堵'
+    when round(speedtoconindex(t.speed,t.type),2) >= 4 then '缓行'
+    when round(speedtoconindex(t.speed,t.type),2) >= 2 then '基本畅通'
+    else '畅通'
+    end as "status"
+    from (
+    select
+    b.fname roadname,
+    c.fname dirname,
+    b.road_type_fid type,
+    sum(a.total_length)/sum(a.total_time)*3.6 speed
+    from t_tpi_road_speed a
+    left join t_base_road b on a.road_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where 1=1
+    and fdate = #{time}
+    and floor((a.period-1)/3+1) = #{period}
+    group by b.fname,c.fname,b.road_type_fid,floor((a.period-1)/3+1)
+    ) t
+    order by 4 desc
+    ) t where rownum &lt;= 30
+  </select>
+
+  <!-- 指数旧大屏页面新接口 start -->
+  <select id="getAllAndDistrictExponentComparisonData"
+    resultType="com.sutpc.its.vo.OldScreenDistrictChartVo">
+    select
+    a.district_fid as "id",
+    floor((a.period-1)/3+1) as "period",
+    round(avg(a.tpi),2) as "tpi",
+    round(sum(b.total_length)/sum(b.total_time)*3.6,1) as "speed"
+    from t_tpi_district_tpi a
+    left join t_tpi_district_speed b on a.fdate = b.fdate and a.district_fid = b.district_fid and
+    a.period = b.period
+    where a.fdate = #{time} and floor((a.period-1)/3+1) &lt;= #{period}
+    and b.road_type_fid in (2,3,4,5)
+    and a.district_fid in
+    <foreach collection="config_district_fid" item="item" open="(" close=")" separator=",">
+      #{item}
+    </foreach>
+    group by a.district_fid , floor((a.period-1)/3+1)
+    order by 1,2
+  </select>
+
+  <select id="getAllRoadMidSectExp" resultType="com.sutpc.its.vo.OldScreenAllRoadMidSectVo">
+    select
+    b.fid as "id",
+    b.fname as "name",
+    b.roadsect_from as "from",
+    b.roadsect_to as "to",
+    round(speedtoconindex(a.total_length/a.total_time*3.6,b.road_type_fid),2) as "tpi"
+    from t_tpi_roadsect_speed a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    where a.fdate = #{time} and a.period = #{period}
+  </select>
+
+  <select id="getDistrictCarAndBusRatio"
+    resultType="com.sutpc.its.vo.OldScreenDistrictSpeedRatioVo">
+    select t.carspeed as "carSpeed",t.busSpeed as "busSpeed",round(t.carspeed/t.busspeed,1) as
+    "ratio" from (
+    select (select round(sum(total_length) / sum(total_time) * 3.6, 1)
+    from t_tpi_district_speed
+    where fdate = #{time}
+    and period = #{period}
+    and road_type_fid in (2, 3, 4, 5)) as carSpeed,
+    (select coalesce(round(sum(total_length) / sum(total_time) * 3.6, 1),21)
+    from t_bus_district_speed
+    where fdate = #{time}
+    and period = #{period}
+    and road_type_fid in (2, 3, 4, 5)) as busSpeed
+    from dual
+    ) t
+  </select>
+
+  <select id="getRoadStatus" resultType="com.sutpc.its.vo.RoadStatusInfoVo">
+    select
+    b.fid as "id",
+    b.fname as "name",
+    c.fname as "dir",
+    a.speed as "speed",
+    round(speedtoconindex(speed,b.road_type_fid),1) as "tpi",
+    case
+    when round(speedtoconindex(speed,b.road_type_fid),1) >= 8 then '拥堵'
+    when round(speedtoconindex(speed,b.road_type_fid),1) >= 6 then '较拥堵'
+    when round(speedtoconindex(speed,b.road_type_fid),1) >= 4 then '缓行'
+    when round(speedtoconindex(speed,b.road_type_fid),1) >= 2 then '基本畅通'
+    else '畅通'
+    end as "status"
+    from t_tpi_road_speed a
+    inner join t_base_road b on a.road_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    where a.fdate = #{time} and a.period = #{period}
+    order by b.fid
+  </select>
+  <!-- 指数旧大屏页面新接口 end -->
+</mapper>

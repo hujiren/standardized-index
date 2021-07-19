@@ -1,0 +1,7 @@
+POST {{host}}/specialtyAnalysis/getJamRoadsectRanking
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+
+index=jam_time_rate&jam_time_rate=0.7&dateproperty=1&startdate=20170524&enddate=20190524&starttime=&endtime=&timeproperty=all_peak&id=1,2,3,4,5,6,7,8,9,10
+
+###

@@ -1,0 +1,31 @@
+POST {{host}}/earlyWarning/getCityAndEveryDistrictTpi
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+
+time=20210126
+
+###
+
+
+POST http://10.3.4.102:8187/gps/taxi/getPoiCarNumByPointDistance
+Accept: application/json
+Content-Type: application/json
+
+
+###
+
+
+
+POST {{host}}/applet/getPeakTpi
+Accept: application/json
+Content-Type: application/json
+
+
+###
+
+POST {{host}}/applet/getWeekPoiSpeedRanking
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+
+startdate=20210125&enddate=20210131&startdate1=20210118&enddate1=20210124
+###

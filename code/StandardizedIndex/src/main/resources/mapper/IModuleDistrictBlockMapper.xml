@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleDistrictBlockDao">
+
+  <!-- 缓行及以上街道数量 -->
+  <select id="getSlowCount" resultType="int">
+    select count(*) "value"
+    from (select a.block_fid, round(avg(a.tpi), 1) tpi
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    right join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    right join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid
+    having avg(a.tpi) >= 4)
+  </select>
+
+  <!-- 畅通及基本畅通街道数量 -->
+  <select id="getUnimpededCount" resultType="int">
+    select count(*) "value"
+    from (select a.block_fid, round(avg(a.tpi), 1) tpi
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    right join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    right join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid
+    having avg(a.tpi) &lt; 4)
+  </select>
+
+  <!-- 获取交通压力最大的街道的相关信息 -->
+  <select id="getMaxBlockInfo" resultType="com.sutpc.its.po.WorkDayPeakExtremaBlockInfoPo">
+    select *
+    from (select a.block_fid "id",
+    b.fname as "name",
+    avg(a.tpi) "tpi",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    right join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    right join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid, b.fname
+    order by round(avg(a.tpi), 1) desc)
+    where rownum = 1
+  </select>
+
+  <!-- 获取交通压力最小（畅通）的街道的相关信息 -->
+  <select id="getMinBlockInfo" resultType="com.sutpc.its.po.WorkDayPeakExtremaBlockInfoPo">
+    select *
+    from (select a.block_fid "id",
+    b.fname as "name",
+    avg(a.tpi) "tpi",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or
+    period between 211 and 234)) a
+    right join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    right join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid, b.fname
+    order by round(avg(a.tpi), 1))
+    where rownum = 1
+  </select>
+
+  <select id="getPeakBlockChartData" resultType="com.sutpc.its.po.WorkDayPeakExtremaBlockInfoPo">
+    select a.block_fid "id",
+    b.fname as "name",
+    avg(a.tpi) "tpi",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_block_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) a
+    right join (select * from t_base_block where district_fid = #{districtFid}) b
+    on a.block_fid = b.fid
+    right join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by a.block_fid, b.fname
+    order by a.block_fid
+  </select>
+</mapper>

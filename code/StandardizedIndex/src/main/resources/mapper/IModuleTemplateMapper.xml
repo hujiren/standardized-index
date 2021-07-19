@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleTemplateDao">
+  <select id="getAll" resultType="com.sutpc.its.statement.bean.ModuleTemplate">
+    select
+    id,type,category,category_id "categoryId",name,priority,demopath,filepath,brief
+    from t_tpi_module_template where 1 = 1
+    <if test="categoryId != null and categoryId != ''">
+      and category_id = #{categoryId}
+    </if>
+    and isshow = 1
+    order by priority,type asc
+  </select>
+
+  <select id="getAllByTypes" resultType="com.sutpc.its.statement.bean.ModuleTemplate"
+    parameterType="String">
+    select
+    id,type,category,category_id "categoryId",name,priority,demopath,filepath,brief
+    from t_tpi_module_template where 1 = 1
+    and type in
+    <foreach collection="list" separator="," index="index" item="item" open="(" close=")">
+      #{item}
+    </foreach>
+    order by priority,type asc
+  </select>
+</mapper>

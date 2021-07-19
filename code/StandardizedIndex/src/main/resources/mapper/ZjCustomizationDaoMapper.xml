@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IZjCustomizationDao">
+  <sql id="sql_condition">
+    <if test='startdate !=null and startdate !="" '>
+      <![CDATA[and t.fdate >= #{startdate} ]]>
+    </if>
+    <if test='enddate !=null and enddate !="" '>
+      <![CDATA[and t.fdate <= #{enddate} ]]>
+    </if>
+    <if test="timeproperty == 'all_peak'  ">
+      <![CDATA[and ((t.period >= 85 and t.period <=108) or (t.period >= 211 and t.period <=234)) ]]>
+    </if>
+    <if test='timeproperty == "morning_peak"  '>
+      <![CDATA[and t.period >= 85 and t.period <=108 ]]>
+    </if>
+    <if test='timeproperty == "evening_peak" '>
+      <![CDATA[and t.period >= 211 and t.period <=234 ]]>
+    </if>
+    <if test='timeproperty == "not_peak"'>
+      <![CDATA[and (t.period < 85 or (t.period >108 and t.period < 211) or t.period >234) ]]>
+    </if>
+    <if test="timeproperty=='user_defined'">
+      <if test='startperiod != 0'>
+        <![CDATA[and t.period >= #{startperiod}]]>
+      </if>
+      <if test='endperiod != 0 '>
+        <![CDATA[and t.period <= #{endperiod}]]>
+      </if>
+    </if>
+    <if test='dateproperty == "1"'>
+      <![CDATA[and t1.is_workday = 1  ]]>
+    </if>
+    <if test='dateproperty == "0"'>
+      <![CDATA[and t1.is_workday = 0 ]]>
+    </if>
+  </sql>
+  <select id="getSubsectHisTpi" parameterType="map" resultType="map">
+    select t.subsect_fid "fid",y.fname "fname", round(avg(t.tpi),2) "tpi",
+    case when round(avg(t.tpi),2) &lt;= 2 then '畅通'
+    when round(avg(t.tpi),2) &lt;= 4 then '基本畅通'
+    when round(avg(t.tpi),2) &lt;= 6 then '缓行'
+    when round(avg(t.tpi),2) &lt;= 8 then '较拥堵'
+    when round(avg(t.tpi),2) &lt;= 10 then '拥堵'
+    end "status"
+    from t_tpi_subsect_status t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_base_subsect y on t.subsect_fid = y.fid
+    where 1=1
+    and y.district_fid in (1,2,3,4)
+    <include refid="sql_condition"/>
+    group by t.subsect_fid,y.fname
+  </select>
+  <select id="getRoadsectHisTpi" parameterType="map" resultType="map">
+    select t.roadsect_fid "fid",t.fname "fname",round(t.tpi,2) "tpi",
+    case when t.tpi &lt;= 2 then '畅通'
+    when t.tpi &lt;= 4 then '基本畅通'
+    when t.tpi &lt;= 6 then '缓行'
+    when t.tpi &lt;= 8 then '较拥堵'
+    when t.tpi &lt;= 10 then '拥堵'
+    end "status"
+    from (
+    select
+    t.roadsect_fid,y.fname,speedtoconindex(round(sum(t.total_length)/sum(t.total_time)*3.6),avg(y.road_type_fid))
+    tpi from t_tpi_roadsect_speed t
+    left join t_base_roadsect y on t.roadsect_fid = y.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1=1
+    and y.district_fid in (1,2,3,4)
+    <include refid="sql_condition"/>
+    group by t.roadsect_fid,y.fname
+    ) t
+  </select>
+</mapper>

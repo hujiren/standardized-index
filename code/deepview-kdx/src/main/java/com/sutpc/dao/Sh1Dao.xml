@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.dao.Sh1Dao">
+	<select id="selectGrid2HotpointData" parameterType="map"
+		resultType="map">
+	<![CDATA[
+		select  b.lng_bmap as origin_coord_x, b.lat_bmap as origin_coord_y,c.lng_bmap as des_coord_x,c.lat_bmap as des_coord_y,round(a.tt/60) as traveltime,round(a.dis/1000)  as distance    
+		from (select gridid_from,hotpointid_to, avg(travel_time) as tt,avg(distance) as dis  
+		             from grid2hotpoint where hotpointid_to=#{hp}  and peak=#{peak} and travel_mode=#{mode}  
+		             group by gridid_from,hotpointid_to) a,fs_sz_grid b,fs_sz_hotpoint c 
+		where a.gridid_from=b.grid_id and a.hotpointid_to=c.point_id
+		]]>
+	</select>
+	<select id="selectHotpoint2GridData" parameterType="map"
+		resultType="map">
+	<![CDATA[
+		select  c.lng_bmap as origin_coord_x, c.lat_bmap as origin_coord_y,b.lng_bmap as des_coord_x,b.lat_bmap as des_coord_y,round(a.tt/60) as traveltime,round(a.dis/1000)  as distance    
+		from (select hotpointid_from,gridid_to, avg(travel_time) as tt,avg(distance) as dis  
+		             from hotpoint2grid  where hotpointid_from=#{hp}  and peak=#{peak} and travel_mode=#{mode}  
+		             group by hotpointid_from,gridid_to) a,fs_sz_grid b,fs_sz_hotpoint c 
+		where a.gridid_to=b.grid_id and a.hotpointid_from=c.point_id
+		]]>
+	</select>
+	
+</mapper>

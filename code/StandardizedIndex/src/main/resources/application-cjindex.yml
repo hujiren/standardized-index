@@ -1,0 +1,55 @@
+sutpc:
+  sys:
+    log:
+      #系统日志接口调用----域名(IP):端口号(结尾要记得带 / )
+      path: http://127.0.0.1:9051/sysmanager/
+spring:
+  application:
+    name: spb-StandardizedIndex
+
+  http:
+    encoding:
+      force: true
+      charset: UTF-8
+      enabled: true
+
+  profiles:
+    active: dev
+  datasource:
+    name: common-test
+    # 深圳指数测试库
+    url: jdbc:oracle:thin:@10.3.4.44:1521:tpmodel
+    #url: jdbc:oracle:thin:@192.168.1.210:1521:tpmodel
+    username: sa
+    password: Sa123456
+    # 使用druid数据源
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: oracle.jdbc.OracleDriver
+    filters: stat
+    maxActive: 20
+    initialSize: 1
+    maxWait: 60000
+    minIdle: 1
+    timeBetweenEvictionRunsMillis: 60000
+    minEvictableIdleTimeMillis: 300000
+    validationQuery: select 'x'
+    testWhileIdle: true
+    testOnBorrow: false
+    testOnReturn: false
+    poolPreparedStatements: true
+    maxOpenPreparedStatements: 20
+
+server:
+  port: 8085
+  session:
+    timeout: 30
+
+# sql日志输出
+logging:
+  level:
+    com.sutpc.its.dao: DEBUG
+
+mybatis:
+  mapper-locations: classpath*:/mapper/*.xml
+  # MapperXml中实体类别名
+  type-aliases-package: com.sutpc.its.model

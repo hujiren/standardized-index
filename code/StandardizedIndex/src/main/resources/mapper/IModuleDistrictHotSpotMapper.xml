@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleDistrictHotSpotDao">
+  <!-- 热点 -->
+  <select id="getPeakMaxHotSpotTpi" resultType="com.sutpc.its.po.PeakHotPotPo">
+    select *
+    from (select b.poi_category "poiName", avg(a.tpi) "tpi"
+    from (select *
+    from t_tpi_poi_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) a
+    inner join (select * from t_base_poi where district_fid = #{districtFid}) b
+    on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where
+    fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.poi_category
+    order by avg(a.tpi) desc)
+    where rownum = 1
+  </select>
+
+  <select id="getPeakMinHotSpotTpi" resultType="com.sutpc.its.po.PeakHotPotPo">
+    select *
+    from (select b.poi_category "poiName", avg(a.tpi) "tpi"
+    from (select *
+    from t_tpi_poi_status
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) a
+    inner join (select * from t_base_poi where district_fid = #{districtFid}) b
+    on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.poi_category
+    order by avg(a.tpi))
+    where rownum = 1
+  </select>
+
+  <!-- 热点-医院详情信息 -->
+  <select id="getHospitalInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id", b.fname "name", round(avg(a.tpi), 1) "tpi"
+    from (select *
+    from t_tpi_poi_status t
+    where (t.period between 85 and 108 or t.period between 157 and 180)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_poi t
+    where t.poi_category = '医院'
+    and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.fid, b.fname
+    order by 2 desc
+  </select>
+
+  <!-- 热点-学校详情信息 -->
+  <select id="getSchoolInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id",b.fname "name",round(avg(a.tpi),1) "tpi" from
+    (select * from t_tpi_poi_status t
+    where (t.period between 85 and 96 or t.period between 193 and 216)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join
+    (select * from t_base_poi t
+    where t.poi_category = '学校' and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on a.fdate = c.fdate
+    group by b.fid,b.fname
+    order by 2 desc
+  </select>
+
+  <!-- 热点-枢纽详情信息 -->
+  <select id="getHingeInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id",b.fname "name",round(avg(a.tpi),1) "tpi" from
+    (select * from t_tpi_poi_status t
+    where t.period between 97 and 264
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join
+    (select * from t_base_poi t
+    where t.poi_category = '枢纽' and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+    group by b.fid,b.fname
+    order by 2 desc
+  </select>
+
+  <!-- 热点-商圈详情信息 -->
+  <select id="getBusinessInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id",b.fname "name",round(avg(a.tpi),1) "tpi" from
+    (select * from t_tpi_poi_status t
+    where t.period between 121 and 240
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join
+    (select * from t_base_poi t
+    where t.poi_category = '商圈' and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 0) c on a.fdate = c.fdate
+    group by b.fid,b.fname
+    order by 2 desc
+  </select>
+
+  <!-- 热点-景区详情信息 非工作日：10:00-18:00 -->
+  <select id="getScenicInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id",b.fname "name",round(avg(a.tpi),1) "tpi" from
+    (select * from t_tpi_poi_status t
+    where t.period between 121 and 216
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join
+    (select * from t_base_poi t
+    where t.poi_category = '景区' and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 0) c on a.fdate = c.fdate
+    group by b.fid,b.fname
+    order by 2 desc
+  </select>
+
+  <!-- 热点-口岸详情信息 -->
+  <select id="getPortInfo" resultType="com.sutpc.its.dto.HotpotInfoDto">
+    select b.fid "id",b.fname "name",round(avg(a.tpi),1) "tpi" from
+    (select * from t_tpi_poi_status t
+    where t.period between 97 and 264
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join
+    (select * from t_base_poi t
+    where t.poi_category = '口岸' and district_fid = #{districtFid}) b on a.poi_fid = b.fid
+    group by b.fid,b.fname
+    order by 2 desc
+  </select>
+</mapper>

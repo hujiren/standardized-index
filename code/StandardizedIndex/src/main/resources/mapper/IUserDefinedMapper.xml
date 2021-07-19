@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.v6.IUserDefinedDao">
+  <insert id="setDefinedInfo">
+    DECLARE
+    V_POINTS CLOB := #{points,jdbcType=CLOB};
+    V_LINKS CLOB := #{links,jdbcType=CLOB};
+    V_ROADS CLOB := #{roads,jdbcType=CLOB};
+    V_SECTIONS CLOB := #{sections,jdbcType=CLOB};
+    BEGIN
+    insert into t_tpi_defined_info (
+    id,fdate,name
+    <if test="region != null and region != ''">
+      ,region
+    </if>
+    <if test="area != null and area != ''">
+      ,area
+    </if>
+    <if test="points != null and points != ''">
+      ,points
+    </if>
+    ,links
+    <if test="roads !=null and roads != ''">
+      ,roads
+    </if>
+    <if test="sections != null and sections != ''">
+      ,sections
+    </if>
+    ,lengths,list,type
+    <if test="creator != null and creator != ''">
+      ,creator
+    </if>
+    ,create_time
+    )
+
+    values(
+    #{id},#{time},#{name}
+    <if test="region != null and region != ''">
+      ,#{region}
+    </if>
+    <if test="area != null and area != ''">
+      ,#{area}
+    </if>
+    <if test="points != null and points != ''">
+      ,V_POINTS
+    </if>
+    ,V_LINKS
+    <if test="roads !=null and roads != ''">
+      ,V_ROADS
+    </if>
+    <if test="sections != null and sections != ''">
+      ,V_SECTIONS
+    </if>
+    ,#{lengths},#{listStr},#{type}
+    <if test="creator != null and creator != ''">
+      ,#{creator}
+    </if>
+    ,sysdate
+    );
+    END;
+  </insert>
+
+  <select id="getRoadIdByLInks" resultType="int">
+    select
+    road_fid
+    from t_base_link where
+    road_fid !=0
+    and fid in
+    <foreach collection="links" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+  </select>
+  <select id="getRoadSectioinIdByLInks" resultType="int">
+    select
+    roadsect_fid
+    from t_base_link where roadsect_fid !=0 and fid in
+    <foreach collection="links" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+  </select>
+
+  <select id="getDefinedBaseInfo" resultType="com.sutpc.its.po.v6.UserDefinedInfoPo">
+    select
+    id as "id",
+    fdate as "time",
+    name as "name",
+    region as "region",
+    area as "area",
+    points as "points",
+    links as "links",
+    roads as "roads",
+    sections as "sections",
+    lengths as "lengths",
+    list as "list",
+    type as "type",
+    create_time,
+    creator as "creator"
+    from t_tpi_defined_info t
+    where 1=1
+    <if test="id != null and id != ''">
+      and id = #{id}
+    </if>
+    order by fdate desc
+  </select>
+
+  <update id="updateDefinedInfo">
+    update t_tpi_defined_info set
+    <if test="name != null and name != ''">
+      name = #{name},
+    </if>
+    update_time = sysdate
+    where id = #{id}
+  </update>
+
+  <delete id="deleteDefinedInfoById">
+    delete t_tpi_defined_info where id = #{id}
+  </delete>
+  <delete id="deleteHistoryInfoById">
+    delete t_tpi_region_history_trend where id = #{id}
+  </delete>
+
+  <select id="getRoadTypeLengths" resultType="com.sutpc.its.po.v6.RoadTypeLengthsPo">
+    select
+    t.road_type_fid as "type",
+    a.fname as "name",
+    sum(length) as "length"
+    from t_base_link t
+    left join t_base_road_type a on t.road_type_fid = a.fid
+    where 1=1
+    and t.fid in
+    <foreach collection="links" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR t.fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    and t.road_type_fid in (1,2,3,4,5)
+    group by t.road_type_fid,a.fname
+  </select>
+
+  <select id="getRegionSpeedAndTpi" resultType="com.sutpc.its.vo.RegionSpeedAndTpiVo">
+    select round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = 20201110 and period = 123) a
+    right join (
+    select * from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )
+  </select>
+
+  <select id="getRegionJamLengthAndRatio" resultType="com.sutpc.its.vo.RealTimeTotalIndexVo">
+    select sum(jam_length) as "jamLength", round(avg(ratio), 3) as "jamRatio"
+    from (select jam_length, jam_length / total_length ratio
+    from (select *
+    from t_tpi_road_jam_ratio
+    where fdate = #{time}
+    and period = #{period}
+    and road_fid in
+    <foreach collection="roads" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR road_fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) a)
+  </select>
+
+  <select id="getTotalRealTimeMonitor" resultType="com.sutpc.its.vo.TotalRealTimeMonitorVo">
+    select hour as "period",round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    floor((a.period-1)/12+1) as hour,
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and floor((period-1)/12+1) &lt;=
+    #{period}) a
+    inner join (select * from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )group by hour
+    order by hour
+  </select>
+
+  <select id="getRelatedSectionMonitor" resultType="com.sutpc.its.vo.RelatedSectionVo">
+    select
+    distinct
+    c.fname as "name",
+    c.roadsect_from as "from",
+    c.roadsect_to as "to",
+    a.speed as "speed",
+    round(speedtoconindex(a.speed,c.road_type_fid),2) as "tpi"
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and period = #{period}) a
+    right join (
+    select * from t_base_roadsect
+    where fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    left join t_base_roadsect c on a.roadsect_fid = c.fid
+    order by 5 desc
+  </select>
+
+  <select id="getHistoryAllDayInfo" resultType="com.sutpc.its.vo.HistoryInfoVo">
+    select fdate as "time",round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    a.fdate,
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} ) a
+    inner join (select distinct fid,road_type_fid from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )group by fdate
+    order by fdate
+  </select>
+
+  <select id="getHistoryMorningPeakInfo" resultType="com.sutpc.its.vo.HistoryInfoVo">
+    select fdate as "time",round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    a.fdate,
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and period between 85 and 108) a
+    inner join (select distinct fid,road_type_fid from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )group by fdate
+    order by fdate
+  </select>
+
+  <select id="getHistoryEveningPeakInfo" resultType="com.sutpc.its.vo.HistoryInfoVo">
+    select fdate as "time",round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    a.fdate,
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and period between 211 and 234) a
+    inner join (select distinct fid,road_type_fid from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )group by fdate
+    order by fdate
+  </select>
+
+  <select id="getHistoryFlatHumpPeakInfo" resultType="com.sutpc.its.vo.HistoryInfoVo">
+    select fdate as "time",round(avg(speed),1) as "speed",round(avg(tpi),2) as "tpi" from (
+    select
+    distinct
+    a.fdate,
+    a.speed as speed,
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as tpi
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and period between 109 and 210) a
+    inner join (select distinct fid,road_type_fid from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    )group by fdate
+    order by fdate
+  </select>
+
+  <select id="getJamRoadSection" resultType="com.sutpc.its.vo.JamRoadSectionVo">
+    select
+    a.roadsect_fid as "id",
+    a.speed as "speed",
+    round(speedtoconindex(a.speed,b.road_type_fid),2) as "tpi"
+    from (select * from t_tpi_roadsect_speed where fdate = #{time} and period = #{period}) a
+    inner join (select distinct fid,road_type_fid from t_base_roadsect where
+    fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) b on a.roadsect_fid = b.fid
+    where round(speedtoconindex(a.speed,b.road_type_fid),2) >= 6
+  </select>
+
+  <select id="getRoadJamLengthRatio" resultType="double">
+    select
+    coalesce (round(sum(jam_length)/sum(total_length),3),0) as "ratio"
+    from t_tpi_road_jam_ratio where road_fid in
+    <foreach collection="roads" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR road_fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    and fdate = #{time} and period = #{period}
+  </select>
+  <select id="getRoadPeakTpi" resultType="double">
+    select coalesce (round(avg(speedtoconindex(a.speed,b.road_type_fid)),2),0) as "tpi" from
+    (select roadsect_fid,total_length/total_time*3.6 as speed from t_tpi_roadsect_speed where fdate
+    = #{time} and (period between 85 and 108 or period between 211 and 234) and roadsect_fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR roadsect_fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+    ) a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+  </select>
+
+  <select id="getSpeedList" resultType="com.sutpc.its.po.PeriodValuePo">
+    select period as "period",total_length/total_time*3.6 as "value" from t_tpi_roadsect_speed
+    where fdate = #{time} and (period between 85 and 108 or period between 211 and 234) and
+    roadsect_fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR roadsect_fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+  </select>
+
+  <select id="getAvgSpeed" resultType="double">
+    select round(sum(total_length)/sum(total_time)*3.6,1) as avgspeed from t_tpi_roadsect_speed
+    where fdate = #{time} and (period between 85 and 108 or period between 211 and 234) and
+    roadsect_fid in
+    <foreach collection="sections" open="(" close=")" item="item" index="index">
+      <if test="index != 0">
+        <choose>
+          <when test="index % 1000 == 999">) OR roadsect_fid IN (</when>
+          <otherwise>,</otherwise>
+        </choose>
+      </if>
+      #{item}
+    </foreach>
+  </select>
+
+  <insert id="setHistoryInfo" parameterType="com.sutpc.its.po.RegionHistoryTrendPo">
+    insert into t_tpi_region_history_trend(
+    id,fdate,avg_speed,morning_speed,evening_speed,flat_speed,avg_tpi,morning_tpi,evening_tpi,flat_tpi
+    ) values(
+    #{id},#{time},#{avgSpeed},#{morningSpeed},#{eveningSpeed},#{flatSpeed},#{avgTpi},#{morningTpi},#{eveningTpi},#{flatTpi}
+    )
+  </insert>
+  <select id="getHistroyInfo" resultType="com.sutpc.its.po.RegionHistoryTrendPo">
+    select
+    fdate as "time",
+    avg_speed as "avgSpeed",
+    morning_speed as "morningSpeed",
+    evening_speed as "eveningSpeed",
+    flat_speed as "flatSpeed",
+    avg_tpi as "avgTpi",
+    morning_tpi as "morningTpi",
+    evening_tpi as "eveningTpi",
+    flat_tpi as "flatTpi"
+    from t_tpi_region_history_trend
+    where id = #{id} and fdate between #{startTime} and #{endTime}
+  </select>
+</mapper>

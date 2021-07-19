@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleCityTotalityDao">
+  <select id="getAllAverageSpeed" resultType="Double">
+    -- 全市路网高峰时段平均速度
+    select COALESCE(sum(tds.total_length) / sum(tds.total_time) * 3.6, 0) as speed
+    from T_TPI_DISTRICT_SPEED tds
+    inner join t_base_date_list tbdl on tds.fdate = tbdl.fdate
+    where tds.DISTRICT_FID = 111
+    and tbdl.is_workday = 1
+    and tds.ROAD_TYPE_FID in (2, 3, 4, 5)
+    and tds.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tds.PERIOD BETWEEN 85 and 108 or tds.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getAllSpeed" resultType="com.sutpc.its.po.CityTotalitySpeedPo">
+    -- 全市路网和中心城区速度计算原始值
+    select tds.DISTRICT_FID as fid,
+    tds.total_length as length,
+    tds.total_time as time,
+    case
+    WHEN tds.PERIOD BETWEEN 85 and 108 then 'MORNING'
+    else 'EVENING' end as period
+    from T_TPI_DISTRICT_SPEED tds
+    inner join t_base_date_list tbdl on tds.fdate = tbdl.fdate
+    where (tds.DISTRICT_FID = 111 or tds.DISTRICT_FID = 222)
+    and tbdl.is_workday = 1
+    and tds.ROAD_TYPE_FID in (2, 3, 4, 5)
+    and tds.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tds.PERIOD BETWEEN 85 and 108 or tds.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getAllTpi" resultType="com.sutpc.its.po.CityTotalityTpiPo">
+    -- 全市路网和中心城区交通指数
+    select tdt.DISTRICT_FID as fid,
+    tdt.tpi as tpi,
+    case
+    WHEN tdt.PERIOD BETWEEN 85 and 108 then 'MORNING'
+    else 'EVENING' end as period
+    from T_TPI_DISTRICT_TPI tdt
+    inner join t_base_date_list tbdl on tdt.fdate = tbdl.fdate
+    where (tdt.DISTRICT_FID = 111 or tdt.DISTRICT_FID = 222)
+    and tbdl.is_workday = 1
+    and tdt.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tdt.PERIOD BETWEEN 85 and 108 or tdt.PERIOD BETWEEN 211 and 234)
+  </select>
+
+</mapper>

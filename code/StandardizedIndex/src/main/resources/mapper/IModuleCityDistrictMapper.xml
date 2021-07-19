@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleCityDistrictDao">
+  <select id="getTpiRank" resultType="com.sutpc.its.po.CityDistrictTpiRankPo">
+    -- 行政区高峰时段速度、指数
+    select tbd.FID as id,
+    tbd.FNAME as name,
+    COALESCE(tds.speed, 0) as speed,
+    COALESCE(tdt.tpi, 0) as tpi
+    from T_BASE_DISTRICT tbd
+    left join (select DISTRICT_FID,
+    COALESCE(sum(t.total_length) / sum(t.total_time) * 3.6, 0) as speed
+    from T_TPI_DISTRICT_SPEED t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where ROAD_TYPE_FID in (2, 3, 4, 5)
+    and b.is_workday = 1
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+    GROUP BY DISTRICT_FID) tds on tds.DISTRICT_FID = tbd.FID
+    left join (select t.DISTRICT_FID, avg(t.tpi) as tpi
+    from T_TPI_DISTRICT_TPI t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where b.is_workday = 1
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+    GROUP BY DISTRICT_FID) tdt on tdt.DISTRICT_FID = tbd.FID
+    where tbd.FID in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    order by tdt.tpi desc, tbd.ORDER_NO asc
+  </select>
+
+  <select id="getAllDistrict" resultType="com.sutpc.its.po.CityDistrictNamePo">
+    select fid as id, fname as name
+    from T_BASE_DISTRICT
+    where FID in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    order by ORDER_NO asc
+  </select>
+
+  <select id="getAllTpi" resultType="com.sutpc.its.po.CityDistrictTpiPo">
+    select t.DISTRICT_FID as id,
+    t.tpi as tpi,
+    case
+    WHEN t.PERIOD BETWEEN 85 and 108 then 'MORNING'
+    else 'EVENING' end as period
+    from T_TPI_DISTRICT_TPI t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where b.is_workday = 1
+    and t.DISTRICT_FID in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getAllSpeed" resultType="com.sutpc.its.po.CityDistrictSpeedPo">
+    select t.DISTRICT_FID as id,
+    t.total_length as length,
+    t.total_time as time,
+    case
+    WHEN t.PERIOD BETWEEN 85 and 108 then 'MORNING'
+    else 'EVENING' end as period
+    from T_TPI_DISTRICT_SPEED t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where ROAD_TYPE_FID in (2, 3, 4, 5)
+    and b.is_workday = 1
+    and t.DISTRICT_FID in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+  </select>
+
+</mapper>

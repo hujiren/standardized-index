@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.ISystemManagerDao">
+  <select id="getCityRoadNetworkBaseInfo" resultType="map" parameterType="map">
+    select district_num "district_num",
+    block_num "block_num",
+    subsect_num "subsect_num",
+    road_num "road_num",
+    roadsect_num "roadsect_num",
+    buslane_num "buslane_num",
+    park_road_num "park_road_num"
+    from t_tpi_data_overview t
+    where t.update_time = (select max(update_time) from t_tpi_data_overview)
+  </select>
+  <select id="getEveryVehicleNums" parameterType="map" resultType="map">
+    select taxi_num "taxi_num",
+    baidu_navigation_num "baidu_navigation_num",
+    car_hailing_num "car_hailing_num",
+    truck_num "truck_num",
+    scheduled_vehicle_num "scheduled_vehicle_num",
+    rented_vehicle_num "rented_vehicle_num",
+    chemical_vehicle_num "chemical_vehicle_num",
+    dump_truck_num "dump_truck_num"
+    from t_tpi_data_overview t
+    where t.update_time = (select max(update_time) from t_tpi_data_overview)
+  </select>
+  <select id="getDevicePointNums" resultType="map" parameterType="map">
+    select video_num "video_num",
+    flow_detector_num "flow_detector_num",
+    weather_detector_num "weather_detector_num",
+    pedestrian_detection_num "pedestrian_detection_num"
+    from t_tpi_data_overview t
+    where t.update_time = (select max(update_time) from t_tpi_data_overview)
+  </select>
+
+  <select id="getNounDefinitionList" resultType="map" parameterType="map">
+    select t.id as "id",
+    t.fname "fname",
+    t.description "description",
+    t.upload_person "upload_person"
+    from t_tpi_noun_definition t
+    where t.is_delete = 0
+    order by t.create_time
+  </select>
+  <update id="updateNounDefinition">
+    update t_tpi_noun_definition
+    <set>
+      <if test="fname != null and fname != ''">
+        fname = #{fname},
+      </if>
+      <if test="description != null and description != '' ">
+        description = #{description},
+      </if>
+      <if test="upload_person != null and upload_person != ''">
+        upload_person = #{upload_person},
+      </if>
+      <if test="update_time != null and update_time != ''">
+        update_time = #{update_time},
+      </if>
+    </set>
+    where id = #{id}
+  </update>
+  <insert id="setNounDefinition">
+    insert into t_tpi_noun_definition (id,
+    fname,
+    description,
+    upload_person,
+    create_time,
+    is_delete)
+    values (#{id}, #{fname}, #{description}, #{upload_person}, #{create_time}, 0)
+  </insert>
+  <update id="deleteNounDefinition" parameterType="map">
+    update t_tpi_noun_definition t
+    set t.is_delete = 1,
+    t.update_time = #{update_time}
+    where id = #{id}
+  </update>
+
+  <!--  系统使用意见反馈  -->
+  <insert id="setSysSuggestion" parameterType="map">
+    insert into t_sys_suggestion (id, fdate, content, suggester, timestamp)
+    values (#{id}, #{time}, #{content}, #{suggester}, #{timestamp})
+  </insert>
+</mapper>

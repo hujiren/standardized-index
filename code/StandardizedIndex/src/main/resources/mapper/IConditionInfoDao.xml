@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IConditionInfoDao">
+  <insert id="setConditionInfo" parameterType="com.sutpc.its.po.ConditionInfoPo">
+    insert into t_condition_info (id, module, param, name, creator, creattime)
+    values (#{id}, #{module}, #{param}, #{name}, #{creator}, sysdate)
+  </insert>
+
+  <select id="getConditionInfo" parameterType="com.sutpc.its.po.ConditionInfoPo"
+    resultType="com.sutpc.its.model.ConditionInfoEntity">
+    select * from (
+    select * from t_condition_info where 1=1
+    <if test="creator != null and creator != ''">
+      and creator = #{creator}
+    </if>
+    <if test="module != null and module != ''">
+      and module = #{module}
+    </if>
+    order by creattime desc
+    ) t where rownum &lt;= 10
+  </select>
+
+  <delete id="delConditionInfo" parameterType="com.sutpc.its.dto.DelConditionInfoDto">
+    delete t_condition_info
+    where id = #{id}
+  </delete>
+</mapper>

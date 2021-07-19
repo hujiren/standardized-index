@@ -1,0 +1,1942 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.ISpecialtyAnalysisDao">
+    <select id="getJamSpaceTimeData" parameterType="map" resultType="map">
+        select t2.fname as "name",
+        t3.fname as "dir",
+        t2.road_type_fid as "type",
+        t2.roadsect_from as "from",
+        t2.roadsect_to as "to",
+        floor((t.period - 1) / 3 + 1) as "x",
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "y",
+        round(speedtoconindex(round(sum(t.total_length) / sum(t.total_time) *
+        3.6,1),t2.road_type_fid),2) as "conindex"
+        from t_tpi_roadsect_speed t
+        left join t_base_roadsect t2 on t.roadsect_fid = t2.fid
+        left join t_base_direction t3 on t2.dir_fid = t3.fid
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where t2.road_fid = #{road_fid}
+        and t.fdate &gt;= #{startdate}
+        and t.fdate &lt;= #{enddate}
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        group by t.roadsect_fid,
+        t2.fname,
+        t3.fname,
+        t2.road_type_fid,
+        t2.roadsect_from,
+        t2.roadsect_to,
+        floor((t.period - 1) / 3 + 1)
+        order by t.roadsect_fid,
+        t2.fname,
+        t3.fname,
+        t2.road_type_fid,
+        t2.roadsect_from,
+        t2.roadsect_to,
+        floor((t.period - 1) / 3 + 1)
+
+    </select>
+    <select id="getJamSpaceTimeFiveMinData" parameterType="map" resultType="map">
+        select t2.fname as "name",
+        t3.fname as "dir",
+        t2.road_type_fid as "type",
+        t2.roadsect_from as "from",
+        t2.roadsect_to as "to",
+        t.period as "x",
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "y",
+        round(speedtoconindex(round(sum(t.total_length) / sum(t.total_time) *
+        3.6,1),t2.road_type_fid),2) as "conindex"
+        from t_tpi_roadsect_speed t
+        left join t_base_roadsect t2 on t.roadsect_fid = t2.fid
+        left join t_base_direction t3 on t2.dir_fid = t3.fid
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where t2.road_fid = #{road_fid}
+        and t.fdate &gt;= #{startdate}
+        and t.fdate &lt;= #{enddate}
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        group by t.roadsect_fid,
+        t2.fname,
+        t3.fname,
+        t2.road_type_fid,
+        t2.roadsect_from,
+        t2.roadsect_to,
+        t.period
+        order by t.roadsect_fid,
+        t2.fname,
+        t3.fname,
+        t2.road_type_fid,
+        t2.roadsect_from,
+        t2.roadsect_to,
+        t.period
+
+    </select>
+    <select id="getWeekDays" parameterType="map" resultType="map">
+    select distinct from_day,to_day from t_base_date_list
+    where fdate between to_number(#{year}||'0000') and to_number(#{year}||'1231')
+    and week_no = #{week_no}
+
+  </select>
+
+    <select id="getRoadWeekChangeData" parameterType="map" resultType="map">
+    select t.fdate as "time",
+    floor((t.period - 1) / 12 + 1) as "period",
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "speed",
+    round(speedtoconindex(round(sum(t.total_length) / sum(t.total_time) * 3.6,
+    1),avg(y.road_type_fid)),2) "tpi"
+    from t_tpi_roadsect_speed t
+    left join t_base_roadsect y on t.roadsect_fid = y.fid
+    where t.roadsect_fid = #{roadsect_fid}
+    and t.fdate &gt;= #{startdate}
+    and t.fdate &lt;= #{enddate}
+    group by t.fdate, floor((t.period - 1) / 12 + 1)
+    order by t.fdate, floor((t.period - 1) / 12 + 1)
+
+  </select>
+    <!--<sql id="sql_condition">
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test='dateproperty == 1'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == 0'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+    </sql>-->
+    <select id="getRoadMidType" parameterType="int" resultType="java.lang.String">
+    select t.road_type_fid as "type"
+    from t_base_roadsect t
+    where t.fid = #{id}
+  </select>
+
+    <select id="getRoadWeekCompare" parameterType="map" resultType="map">
+        select
+        t2.fname as "name",
+        t3.fname as "dir",
+        t2.roadsect_from as "from",
+        t2.roadsect_to as "to",
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "speed"
+        from t_tpi_roadsect_speed t
+        left join t_base_roadsect t2 on t.roadsect_fid = t2.fid
+        left join t_base_direction t3 on t2.dir_fid = t3.fid
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        <include refid="sql_condition"/>
+        and t2.road_fid = #{road_fid}
+        group by t2.fid,t2.fname, t3.fname, t2.roadsect_from, t2.roadsect_to
+        order by t2.fid,t2.fname, t3.fname, t2.roadsect_from, t2.roadsect_to
+
+    </select>
+    <select id="getJamRanking_JamTimeRate" parameterType="map" resultType="map">
+        select * from (
+        select a.roadsect_fid,a.allperiod,a.jam_time_rate,d.fname as district_fname,b.fname as
+        roadsect_fname,b.roadsect_from,b.roadsect_to,c.fname as dir_fname,b.road_type_fid,b.jam_speed
+        from (
+        select a.roadsect_fid,round(a.jamcount/c.allcount,2) as jam_time_rate,c.allcount as allperiod
+        from
+        (select t.roadsect_fid,count(*) as jamcount from t_tpi_roadsect_speed t
+        inner join t_base_roadsect k on t.roadsect_fid=k.fid
+        left join t_base_date_list t1 on t1.fdate = t.fdate
+        where 1=1
+        and (t.total_length/t.total_time*3.6) &lt; k.jam_speed
+        <include refid="sql_condition"/>
+        group by t.roadsect_fid) a
+        left join
+        (select t.roadsect_fid, count(*) as allcount
+        from t_tpi_roadsect_speed t left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        <include refid="sql_condition"/>
+        group by t.roadsect_fid) c
+        on a.roadsect_fid=c.roadsect_fid
+        ) a left join t_base_roadsect b on a.roadsect_fid = b.fid
+        left join t_base_direction c on b.dir_fid = c.fid
+        left join t_base_district d on d.fid = b.district_fid
+        where 1=1
+        and a.jam_time_rate &gt;= #{jam_time_rate}
+        and b.district_fid
+        <include refid="sql_permIds"/>
+        ) m left join (
+        select t.roadsect_fid,round(sum(t.total_length)/sum(t.total_time)*3.6,1) as speed from
+        t_tpi_roadsect_speed t left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        <include refid="sql_condition"/>
+        group by t.roadsect_fid
+        ) n on m.roadsect_fid=n.roadsect_fid
+        order by m.jam_time_rate desc,n.speed
+    </select>
+    <select id="getJamRanking_Tpi" parameterType="map" resultType="map">
+        select a.roadsect_fid,
+        c.fname as district_fname,
+        b.fname as roadsect_fname,
+        b.roadsect_from,
+        b.roadsect_to,
+        d.fname as dir_fname,
+        a.sample_vehicle,
+        a.speed,
+        round(speedtoconindex(a.speed, b.road_type_fid),2) tpi,
+        b.road_type_fid
+        from
+        (
+        select t.roadsect_fid,sum(t.sample_vehicle) sample_vehicle,
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) speed
+        from t_tpi_roadsect_speed t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        <include refid="sql_condition"/>
+        group by t.roadsect_fid
+        HAVING <![CDATA[ sum(t.sample_vehicle) > #{sampleSize} ]]>
+        ) a
+        left join t_base_roadsect b on a.roadsect_fid = b.fid
+        left join t_base_district c on b.district_fid = c.fid
+        left join t_base_direction d on d.fid = b.dir_fid
+        where 1 = 1
+        and c.fid
+        <include refid="sql_permIds"/>
+        order by tpi desc
+    </select>
+    <select id="getParkingTollRoad" parameterType="map" resultType="map">
+        select
+        <if test="check_type == 'district'">
+            b.fname as district_fname
+        </if>
+        <if test="check_type == 'subsect'">
+            a.park_zone_name
+        </if>
+        ,
+        round(sum(t.total_length)/sum(t.total_time)*3.6,1) speed from t_tpi_park_road_speed t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        left join t_tpi_park_road a on t.park_road_fid = a.fid
+        left join t_base_district b on a.district_fid = b.fid
+        where 1 = 1
+        <include refid="sql_condition"/>
+        <if test="check_type=='district'">
+            and a.district_fid
+        </if>
+        <if test="check_type=='subsect'">
+            and a.park_zone_id
+        </if>
+        <include refid="sql_permIds"/>
+        group by
+        <if test="check_type == 'district'">
+            b.fname
+        </if>
+        <if test="check_type == 'subsect'">
+            a.park_zone_name
+        </if>
+
+    </select>
+    <select id="getParkingTollRoadMapData" parameterType="map" resultType="map">
+        select a.fid road_id,a.road_name,round(sum(t.total_length)/sum(t.total_time)*3.6,1) speed from
+        t_tpi_park_road_speed t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        left join t_tpi_park_road a on t.park_road_fid = a.fid
+        left join t_base_district b on a.district_fid = b.fid
+        where 1 = 1
+        <include refid="sql_condition"/>
+        <if test="check_type=='district'">
+            and a.district_fid
+        </if>
+        <if test="check_type=='subsect'">
+            and a.park_zone_id
+        </if>
+        <include refid="sql_permIds"/>
+        group by a.fid ,a.road_name
+
+    </select>
+    <select id="getAllHoiday" parameterType="map" resultType="map">
+    select distinct holiday_fid, holiday_name
+    from t_tpi_holiday_date
+    order by holiday_fid
+  </select>
+
+    <select id="getAllSpotindexCategory" parameterType="map" resultType="map">
+        select distinct spot_type,spot_category from t_tpi_holiday_spot
+        where district_fid=0
+        <if test="config_district_fid != null and config_district_fid != ''">
+            or district_fid in
+            <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        order by spot_type
+    </select>
+
+    <select id="getAllSpotindex" parameterType="map" resultType="map">
+        select fid,fname,spot_type,spot_category,spot_lng,spot_lat from t_tpi_holiday_spot
+        where 1=1
+
+        <if test="config_district_fid != null and config_district_fid != ''">
+            and district_fid in
+            <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                #{item}
+            </foreach>
+        </if>
+
+        and is_delete=0
+    </select>
+
+    <select id="getHolidayQueryResult" parameterType="map" resultType="map">
+        select
+        x.roadsect_fid,
+        x.roadsect_name,
+        x.roadsect_from,
+        x.roadsect_to,
+        x.dirname,
+        y.spotsname,
+        x.jam_hour,
+        x.jam_speed,
+        x.jam_weight,
+        x.jam_period
+        from (
+        select
+        a.roadsect_fid,
+        b.fname roadsect_name,
+        b.roadsect_from,
+        b.roadsect_to,
+        c.fname dirname,
+        a.jam_hour,
+        a.jam_speed,
+        a.jam_weight,
+        a.jam_period
+        from (
+        select
+        roadsect_fid,
+        jam_hour,
+        jam_speed,
+        jam_weight,
+        jam_period
+        from
+        t_tpi_holiday_jam_index
+        where year = #{year}
+        and holiday_fid = #{holiday_fid}
+        and stage = #{stage}
+        -- and jam_hour > 2
+        -- and jam_weight > 10
+        -- and jam_period is not null
+        <if test="spot_type != null and spot_type !=''">
+            and roadsect_fid in
+            (select distinct roadsect_fid
+            from t_tpi_holiday_spot_roadsect
+            where spot_type in
+            <foreach close=")" collection="spot_type_array"
+                     index="index" item="cid" open="(" separator=",">
+                #{cid}
+            </foreach>
+
+            <if test="spot_fid != null and spot_fid !=''">
+                and spot_fid in
+                <foreach close=")" collection="spot_fid_array"
+                         index="index" item="cid" open="(" separator=",">
+                    #{cid}
+                </foreach>
+            </if>
+            )
+        </if>
+        order by jam_weight desc) a
+        left join t_base_roadsect b on a.roadsect_fid = b.fid
+        left join t_base_direction c on b.dir_fid = c.fid
+        where 1 = 1
+        <if test="road_type_fid !=null and road_type_fid != ''">
+            and b.road_type_fid in
+            <foreach close=")" collection="road_type_fid_array" index="index" item="roadtypefid" open="("
+                     separator=",">
+                #{roadtypefid}
+            </foreach>
+        </if>
+
+        <if test="config_district_fid != null and config_district_fid != ''">
+            and b.district_fid in
+            <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                #{item}
+            </foreach>
+        </if>
+
+        ) x
+        left join view_spotindex y on x.roadsect_fid = y.ROADSECT_FID
+        <if test="otherFlag != null and otherFlag == 0">
+            union all
+            select x.roadsect_fid,
+            x.roadsect_name,
+            x.roadsect_from,
+            x.roadsect_to,
+            x.dirname,
+            y.spotsname,
+            x.jam_hour,
+            x.jam_speed,
+            x.jam_weight,
+            x.jam_period
+            from (select a.roadsect_fid,
+            b.fname roadsect_name,
+            b.roadsect_from,
+            b.roadsect_to,
+            c.fname dirname,
+            a.jam_hour,
+            a.jam_speed,
+            a.jam_weight,
+            a.jam_period
+            from (select roadsect_fid,
+            jam_hour,
+            jam_speed,
+            jam_weight,
+            jam_period
+            from t_tpi_holiday_jam_index
+            where year = #{year}
+            and holiday_fid = #{holiday_fid}
+            and stage = #{stage}
+--             and jam_hour > 2
+--             and jam_weight > 10
+--             and jam_period is not null
+            <if test="spot_type != null and spot_type !=''">
+                and roadsect_fid not in
+                (select distinct roadsect_fid
+                from t_tpi_holiday_spot_roadsect
+                )
+            </if>
+            order by jam_weight desc) a
+            left join t_base_roadsect b on a.roadsect_fid = b.fid
+            left join t_base_direction c on b.dir_fid = c.fid
+            where 1 = 1
+            <if test="road_type_fid !=null and road_type_fid != ''">
+                and b.road_type_fid in
+                <foreach close=")" collection="road_type_fid_array" index="index" item="roadtypefid"
+                         open="(" separator=",">
+                    #{roadtypefid}
+                </foreach>
+            </if>
+            <if test="config_district_fid != null and config_district_fid != ''">
+                and b.district_fid in
+                <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                    #{item}
+                </foreach>
+            </if>
+            ) x
+            left join view_spotindex y on x.roadsect_fid = y.ROADSECT_FID
+        </if>
+    </select>
+
+    <select id="getSpotAroundJamRoadsectStatus" parameterType="map" resultType="map">
+        select
+        distinct t.roadsect_fid "roadsect_fid",
+        t.spot_fid "spot_fid",
+        t.spot_type "spot_type",
+        t.speed "speed",
+        t.tpi "tpi",
+        case
+        when t.tpi &lt;= 2 then '畅通'
+        when t.tpi &lt;= 4 then '基本畅通'
+        when t.tpi &lt;= 6 then '缓行'
+        when t.tpi &lt;= 8 then '较拥堵'
+        when t.tpi &lt;= 10 then '拥堵'
+        end "status"
+        from
+        (
+        select
+        t.roadsect_fid,
+        b.spot_fid,
+        spot_type,
+        round(t.jam_speed,1) speed,
+        round(speedtoconindex(t.jam_speed,y.road_type_fid),2) tpi
+        from
+        t_tpi_holiday_jam_index t
+        left join
+        t_base_roadsect y
+        on
+        t.roadsect_fid = y.fid
+        left join
+        t_tpi_holiday_spot_roadsect b
+        on
+        b.roadsect_fid = t.roadsect_fid
+        left join
+        t_base_roadsect c
+        on
+        c.fid = t.roadsect_fid
+        where
+        1=1
+        and
+        year = #{year}
+        and
+        holiday_fid = #{holiday_fid}
+        and
+        stage = #{stage}
+        and
+        spot_type in
+        <foreach close=")" collection="spot_type" item="item" open="(" separator=",">
+            #{item}
+        </foreach>
+        and
+        c.road_type_fid in
+        <foreach close=")" collection="road_type_fid" item="item" open="(" separator=",">
+            #{item}
+        </foreach>
+
+        <if test="config_district_fid != null and config_district_fid != ''">
+            and
+            y.district_fid in
+            <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                #{item}
+            </foreach>
+        </if>
+        ) t
+        <if test="otherFlag != null and otherFlag == 0">
+            union all
+            select
+            distinct t.roadsect_fid "roadsect_fid",
+            (select 0 from dual) "spot_fid",
+            (select 0 from dual) "spot_type",
+            t.speed "speed",
+            t.tpi "tpi",
+            case
+            when t.tpi &lt;= 2 then '畅通'
+            when t.tpi &lt;= 4 then '基本畅通'
+            when t.tpi &lt;= 6 then '缓行'
+            when t.tpi &lt;= 8 then '较拥堵'
+            when t.tpi &lt;= 10 then '拥堵'
+            end "status"
+            from (
+            select
+            distinct t.roadsect_fid,round(t.jam_speed,1) speed,
+            round(speedtoconindex(t.jam_speed,y.road_type_fid),2) tpi
+            from
+            t_tpi_holiday_jam_index t
+            left join
+            t_base_roadsect y
+            on
+            t.roadsect_fid = y.fid
+            left join
+            t_base_roadsect c
+            on
+            t.roadsect_fid = c.fid
+            where
+            t.roadsect_fid not in
+            (select distinct t.roadsect_fid from t_tpi_holiday_spot_roadsect t)
+            and
+            year = #{year}
+            and
+            holiday_fid = #{holiday_fid}
+            and
+            stage = #{stage}
+            and
+            c.road_type_fid in
+            <foreach close=")" collection="road_type_fid" item="item" open="(" separator=",">
+                #{item}
+            </foreach>
+
+            <if test="config_district_fid != null and config_district_fid != ''">
+                and
+                y.district_fid in
+                <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">
+                    #{item}
+                </foreach>
+            </if>
+            ) t
+        </if>
+    </select>
+<!--  <select id="getSpotAroundJamRoadsectStatus" parameterType="map" resultType="map">-->
+<!--    select distinct t.roadsect_fid "roadsect_fid",t.spot_fid "spot_fid",t.spot_type "spot_type",-->
+<!--    t.speed "speed",t.tpi "tpi",-->
+<!--    case when t.tpi&lt;=2 then '畅通'-->
+<!--    when t.tpi&lt;=4 then '基本畅通'-->
+<!--    when t.tpi&lt;=6 then '缓行'-->
+<!--    when t.tpi&lt;=8 then '较拥堵'-->
+<!--    when t.tpi&lt;=10 then '拥堵'-->
+<!--    end "status"-->
+<!--    from (select t.roadsect_fid,b.spot_fid,spot_type,round(t.jam_speed,1)-->
+<!--    speed,round(speedtoconindex(t.jam_speed,y.road_type_fid),2) tpi-->
+<!--    from t_tpi_holiday_jam_index t-->
+<!--    left join t_base_roadsect y on t.roadsect_fid = y.fid-->
+<!--    left join t_tpi_holiday_spot_roadsect b on b.roadsect_fid = t.roadsect_fid-->
+<!--    left join t_base_roadsect c on c.fid = t.roadsect_fid-->
+<!--    where 1=1-->
+<!--    and year = #{year}-->
+<!--    and jam_hour > 2 and jam_weight > 10-->
+<!--    and holiday_fid = #{holiday_fid}-->
+<!--    and stage = #{stage}-->
+<!--    and spot_type in-->
+<!--    <foreach close=")" collection="spot_type" item="item" open="(" separator=",">-->
+<!--      #{item}-->
+<!--    </foreach>-->
+<!--    and c.road_type_fid in-->
+<!--    <foreach close=")" collection="road_type_fid" item="item" open="(" separator=",">-->
+<!--      #{item}-->
+<!--    </foreach>-->
+<!--    <if test="config_district_fid != null and config_district_fid != ''">-->
+<!--      and y.district_fid in-->
+<!--      <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">-->
+<!--        #{item}-->
+<!--      </foreach>-->
+<!--    </if>-->
+<!--    ) t-->
+<!--    <if test="otherFlag != null and otherFlag == 0">-->
+<!--      union all-->
+<!--      select distinct t.roadsect_fid "roadsect_fid",(select 0 from dual) "spot_fid",(select 0 from-->
+<!--      dual) "spot_type",-->
+<!--      t.speed "speed",t.tpi "tpi",-->
+<!--      case when t.tpi&lt;=2 then '畅通'-->
+<!--      when t.tpi&lt;=4 then '基本畅通'-->
+<!--      when t.tpi&lt;=6 then '缓行'-->
+<!--      when t.tpi&lt;=8 then '较拥堵'-->
+<!--      when t.tpi&lt;=10 then '拥堵'-->
+<!--      end "status"-->
+<!--      from (-->
+<!--      select distinct t.roadsect_fid,round(t.jam_speed,1)-->
+<!--      speed,round(speedtoconindex(t.jam_speed,y.road_type_fid),2) tpi-->
+<!--      from t_tpi_holiday_jam_index t-->
+<!--      left join t_base_roadsect y on t.roadsect_fid = y.fid-->
+<!--      left join t_base_roadsect c on c.fid = t.roadsect_fid-->
+<!--      where t.roadsect_fid not in-->
+<!--      (select distinct t.roadsect_fid from t_tpi_holiday_spot_roadsect t-->
+<!--      )-->
+<!--      and year = #{year}-->
+<!--      and holiday_fid = #{holiday_fid}-->
+<!--      and stage = #{stage}-->
+<!--      and c.road_type_fid in-->
+<!--      <foreach close=")" collection="road_type_fid" item="item" open="(" separator=",">-->
+<!--        #{item}-->
+<!--      </foreach>-->
+<!--      <if test="config_district_fid != null and config_district_fid != ''">-->
+<!--        and y.district_fid in-->
+<!--        <foreach close=")" collection="config_district_fid" item="item" open="(" separator=",">-->
+<!--          #{item}-->
+<!--        </foreach>-->
+<!--      </if>-->
+<!--      ) t-->
+<!--    </if>-->
+<!--  </select>-->
+  <select id="getTaxiIndexData" parameterType="map" resultType="map">
+    <if test="timeprecision == 'day'">
+      select
+      round(avg(1-valid_time_rate),2) valid_time_rate,
+      round(avg(1-valid_dis_rate),2) valid_dis_rate,
+      round(avg(vehicle_trip_dis),1) vehicle_trip_dis,
+      round(avg(trip_num),1) trip_num,
+      round(avg(avg_trip_num)) avg_trip_num,
+      round(avg(vehicle_trip_time)) vehicle_trip_time
+      from t_vpm_taxi_index t left join t_base_date_list t1 on t.fdate = t1.fdate
+      where 1=1
+      and t.vehicle_type = #{vehicle_type}
+      <include refid="sql_condition_car"/>
+    </if>
+    <if test="timeprecision == 'hour'">
+      select
+      round(sum(t.invalid_time)/sum(t.total_time),2) valid_time_rate,
+      round(sum(t.invalid_dis)/sum(t.total_dis),2) valid_dis_rate,
+      round((sum(t.total_dis)-sum(t.invalid_dis))/sum(t.vehicle_num),1) vehicle_trip_dis,
+      round((sum(t.total_time)-sum(t.invalid_time))/sum(t.vehicle_num)*60)vehicle_trip_time,
+      round(sum(t.trip_num)/sum(t.vehicle_num)) avg_trip_num,
+      round(avg(t.trip_num)) trip_num
+      from t_vpm_veh_summary t
+      where 1=1
+      and t.vehicle_type = #{vehicle_type}
+      and t.hh = #{hh}
+      <include refid="sql_condition_car"/>
+    </if>
+  </select>
+<!--  <select id="getNavigationCarIndexData" parameterType="map" resultType="map">-->
+<!--    <if test="timeprecision == 'day'">-->
+<!--      select round(avg(t.vehicle_total_dis),2) "trip_dis",-->
+<!--      round(avg(t.vehicle_total_time)*60) "trip_time",-->
+<!--      round(avg(t.total_speed),2) "trip_speed" from t_vpm_taxi_index t-->
+<!--      left join t_base_date_list t1 on t.fdate = t1.fdate-->
+<!--      where 1=1-->
+<!--      and t.vehicle_type = #{vehicle_type}-->
+<!--      <include refid="sql_condition_car"/>-->
+<!--    </if>-->
+<!--    <if test="timeprecision == 'hour'">-->
+<!--      select round(sum(t.total_dis)/sum(t.vehicle_num),2) "trip_dis",-->
+<!--      round(sum(total_time)/sum(vehicle_num)*60) "trip_time",-->
+<!--      round(sum(t.total_dis)/sum(total_time),2) "trip_speed"-->
+<!--      from t_vpm_veh_summary t-->
+<!--      left join t_base_date_list t1 on t.fdate = t1.fdate-->
+<!--      where 1=1-->
+<!--      and t.vehicle_type = #{vehicle_type}-->
+<!--      and t.hh = #{hh}-->
+<!--      <include refid="sql_condition_car"/>-->
+<!--    </if>-->
+<!--  </select>-->
+<!--  <select id="getTripDistanceData" parameterType="map" resultType="map">-->
+<!--    SELECT sum(dis_0_5) as dis_0_5,-->
+<!--    sum(dis_5_10) as dis_5_10,-->
+<!--    sum(dis_10_15) as dis_10_15,-->
+<!--    sum(dis_15_20) as dis_15_20,-->
+<!--    sum(dis_20_25) as dis_20_25,-->
+<!--    sum(dis_25_30) as dis_25_30,-->
+<!--    sum(dis_30) as dis_30-->
+<!--    FROM t_vpm_taxi_distance t-->
+<!--    left join t_base_date_list t1 on t.fdate = t1.fdate-->
+<!--    where 1 = 1-->
+<!--    and t.vehicle_type = #{vehicle_type}-->
+<!--    <include refid="sql_condition_car"/>-->
+<!--  </select>-->
+<!--  <select id="getTripTimeData" parameterType="map" resultType="map">-->
+<!--    Select sum(time_0_10) as time_0_10,-->
+<!--    sum(time_10_20) as time_10_20,-->
+<!--    sum(time_20_30) as time_20_30,-->
+<!--    sum(time_30_40) as time_30_40,-->
+<!--    sum(time_40_50) as time_40_50,-->
+<!--    sum(time_50_60) as time_50_60,-->
+<!--    sum(time_60) as time_60-->
+<!--    FROM t_vpm_taxi_time t-->
+<!--    left join t_base_date_list t1 on t1.fdate = t.fdate-->
+<!--    where 1 = 1-->
+<!--    and t.vehicle_type = #{vehicle_type}-->
+<!--    <include refid="sql_condition_car"/>-->
+<!--  </select>-->
+
+<!--    <select id="getTaxiIndexData" parameterType="map" resultType="map">-->
+<!--        <if test="timeprecision == 'day'">-->
+<!--            select-->
+<!--            round(avg(1-valid_time_rate),2) valid_time_rate,-->
+<!--            round(avg(1-valid_dis_rate),2) valid_dis_rate,-->
+<!--            round(avg(vehicle_trip_dis),1) vehicle_trip_dis,-->
+<!--            round(avg(trip_num),1) trip_num,-->
+<!--            round(avg(avg_trip_num)) avg_trip_num,-->
+<!--            round(avg(vehicle_trip_time)) vehicle_trip_time-->
+<!--            from t_vpm_taxi_index t left join t_base_date_list t1 on t.fdate = t1.fdate-->
+<!--            where 1=1-->
+<!--            and t.vehicle_type = #{vehicle_type}-->
+<!--            <include refid="sql_condition_car"/>-->
+<!--        </if>-->
+<!--        <if test="timeprecision == 'hour'">-->
+<!--            select-->
+<!--            round(sum(t.invalid_time)/sum(t.total_time),2) valid_time_rate,-->
+<!--            round(sum(t.invalid_dis)/sum(t.total_dis),2) valid_dis_rate,-->
+<!--            round((sum(t.total_dis)-sum(t.invalid_dis))/sum(t.vehicle_num),1) vehicle_trip_dis,-->
+<!--            round((sum(t.total_time)-sum(t.invalid_time))/sum(t.vehicle_num)*60)vehicle_trip_time,-->
+<!--            round(sum(t.trip_num)/sum(t.vehicle_num)) avg_trip_num,-->
+<!--            round(avg(t.trip_num)) trip_num-->
+<!--            from t_vpm_veh_summary t-->
+<!--            where 1=1-->
+<!--            and t.vehicle_type = #{vehicle_type}-->
+<!--            and t.hh = #{hh}-->
+<!--            <include refid="sql_condition_car"/>-->
+<!--        </if>-->
+<!--    </select>-->
+    <select id="getNavigationCarIndexData" parameterType="map" resultType="map">
+        <if test="timeprecision == 'day'">
+            select round(avg(t.vehicle_total_dis),2) "trip_dis",
+            round(avg(t.vehicle_total_time)*60) "trip_time",
+            round(avg(t.total_speed),2) "trip_speed" from t_vpm_taxi_index t
+            left join t_base_date_list t1 on t.fdate = t1.fdate
+            where 1=1
+            and t.vehicle_type = #{vehicle_type}
+            <include refid="sql_condition_car"/>
+        </if>
+        <if test="timeprecision == 'hour'">
+            select round(sum(t.total_dis)/sum(t.vehicle_num),2) "trip_dis",
+            round(sum(total_time)/sum(vehicle_num)*60) "trip_time",
+            round(sum(t.total_dis)/sum(total_time),2) "trip_speed"
+            from t_vpm_veh_summary t
+            left join t_base_date_list t1 on t.fdate = t1.fdate
+            where 1=1
+            and t.vehicle_type = #{vehicle_type}
+            and t.hh = #{hh}
+            <include refid="sql_condition_car"/>
+        </if>
+    </select>
+    <select id="getTripDistanceData" parameterType="map" resultType="map">
+        SELECT sum(dis_0_5) as dis_0_5,
+        sum(dis_5_10) as dis_5_10,
+        sum(dis_10_15) as dis_10_15,
+        sum(dis_15_20) as dis_15_20,
+        sum(dis_20_25) as dis_20_25,
+        sum(dis_25_30) as dis_25_30,
+        sum(dis_30) as dis_30
+        FROM t_vpm_taxi_distance t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        and t.vehicle_type = #{vehicle_type}
+        <include refid="sql_condition_car"/>
+    </select>
+    <select id="getTripTimeData" parameterType="map" resultType="map">
+        Select sum(time_0_10) as time_0_10,
+        sum(time_10_20) as time_10_20,
+        sum(time_20_30) as time_20_30,
+        sum(time_30_40) as time_30_40,
+        sum(time_40_50) as time_40_50,
+        sum(time_50_60) as time_50_60,
+        sum(time_60) as time_60
+        FROM t_vpm_taxi_time t
+        left join t_base_date_list t1 on t1.fdate = t.fdate
+        where 1 = 1
+        and t.vehicle_type = #{vehicle_type}
+        <include refid="sql_condition_car"/>
+    </select>
+
+    <select id="getTripSpeedData" parameterType="map" resultType="map">
+        select sum(SPEED_0_5) as SPEED_0_5,
+        sum(SPEED_5_10) as SPEED_5_10,
+        sum(SPEED_10_15) as SPEED_10_15,
+        sum(SPEED_15_20) as SPEED_15_20,
+        sum(SPEED_20_25) as SPEED_20_25,
+        sum(SPEED_25_30) as SPEED_25_30,
+        sum(SPEED_30_35) as SPEED_30_35,
+        sum(SPEED_35_40) as SPEED_35_40,
+        sum(SPEED_40) as SPEED_40
+        FROM t_vpm_taxi_speed t
+        left join t_base_date_list t1 on t1.fdate = t.fdate
+        where 1 = 1
+        and t.vehicle_type = #{vehicle_type}
+        <include refid="sql_condition_car"/>
+    </select>
+    <select id="getOdDistributionData" parameterType="map" resultType="map">
+        select
+        <include refid="sql_time"/>
+        <include refid="sql_od_fid_type"/>
+        as fid,
+        <if test="check_type == 'block' or check_type == 'district'">t2.fname,</if>
+        round(sum(volume)/count(distinct t.fdate)) volume from
+        <include refid="sql_od_table"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        <if test="check_type == 'block'">
+            ,t_base_block t2
+        </if>
+        <if test="check_type == 'district'">
+            ,t_base_district t2
+        </if>
+        where 1 = 1
+        <if test="check_type == 'block'">
+            <if test="statistical_type == 'leave'">
+                and t.to_block_fid = t2.fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                and t.from_block_fid = t2.fid
+            </if>
+        </if>
+        <if test="check_type == 'district'">
+            <if test="statistical_type == 'leave'">
+                and t.to_district_fid = t2.fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                and t.from_district_fid = t2.fid
+            </if>
+        </if>
+        and t.vehicle_type
+        <include refid="sql_permIds"/>
+        and
+        <include refid="sql_od_fid_row_name"/>
+        = #{fid}
+        <if test="check_type == 'poi'">
+            and t.od_type=#{od_type}
+        </if>
+        <include refid="sql_condition_car"/>
+        group by
+        <include refid="sql_time_grouporder"/>
+        <include refid="sql_od_fid_type"/>
+        <if test="check_type == 'block' or check_type == 'district'">,t2.fname</if>
+        order by
+        <include refid="sql_time_grouporder"/>
+        <include refid="sql_od_fid_type"/>
+        <if test="check_type == 'block' or check_type == 'district'">,t2.fname</if>
+
+    </select>
+    <select id="getTripsData" parameterType="map" resultType="map">
+        select
+        <include refid="sql_time"/>
+        <include refid="sql_trips_fid_type"/>
+        fid,
+        round(sum(t.leave_volume)/count(distinct t.fdate))
+        leave_volume,round(sum(t.arrival_volume)/count(distinct t.fdate)) arrival_volume from
+        <include refid="sql_trips_table"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        and t.vehicle_type
+        <include refid="sql_permIds"/>
+        <include refid="sql_condition_car"/>
+        group by
+        <include refid="sql_time_grouporder"/>
+        <include refid="sql_trips_fid_type"/>
+        order by
+        <include refid="sql_time_grouporder"/>
+        <include refid="sql_trips_fid_type"/>
+    </select>
+    <select id="getRoadsectFlow" parameterType="map" resultType="map">
+        select
+        <include refid="sql_time"/>
+        t.roadsect_fid,y.fname,y.roadsect_from,y.roadsect_to,
+        <if test="timeprecision == 'hour'">
+            round(avg(t.volume)) volume
+        </if>
+        <if test="timeprecision == 'day'">
+            round(sum(t.volume)/avg(a.num)) volume
+        </if>
+        from t_vpm_roadsect_volume t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        left join t_base_roadsect y on t.roadsect_fid = y.fid
+        <if test="timeprecision == 'day'">
+            left join (select count(distinct t.fdate) num ,t.roadsect_fid from t_vpm_roadsect_volume t
+            left join t_base_date_list t1 on t.fdate = t1.fdate
+            where 1 = 1
+            and t.vehicle_type
+            <include refid="sql_permIds"/>
+            <include refid="sql_condition_car"/>
+            group by t.roadsect_fid) a on t.roadsect_fid = a.roadsect_fid
+        </if>
+        where 1 = 1
+        and t.vehicle_type
+        <include refid="sql_permIds"/>
+        <if test="hh != null and hh != ''">
+            and t.hh = #{hh}
+        </if>
+        <include refid="sql_condition_car"/>
+        group by
+        <include refid="sql_time_grouporder"/>
+        t.roadsect_fid,y.fname,y.roadsect_from,y.roadsect_to
+        order by round(avg(t.volume)) desc
+    </select>
+    <select id="getDistrictLeaveAndArrivalRanking" parameterType="map" resultType="map">
+        select a.fid,a.fname,round(a.volume/b.num) volume from (
+        select y.fid,y.fname,sum(
+        <if test="methods == 'leave'">leave_volume</if>
+        <if test="methods == 'arrival'">arrival_volume</if>
+        ) volume from t_vpm_district_leave_arrival t
+        left join t_base_district y on t.district_fid = y.fid
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1 and t.vehicle_type
+        <include refid="sql_permIds"/>
+        <include refid="sql_condition_car"/>
+        group by y.fid,y.fname
+        order by y.fid,y.fname
+        ) a left join
+        (select count(distinct t.fdate) num,t.district_fid from t_vpm_district_leave_arrival t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1 = 1
+        and t.vehicle_type
+        <include refid="sql_permIds"/>
+        <include refid="sql_condition_car"/>
+        group by t.district_fid) b on a.fid = b.district_fid
+        order by volume desc
+    </select>
+
+
+    <select id="getContrastiveSpeed" parameterType="map" resultType="map">
+        select
+        <include refid="contrastiveCheck_period"/>
+        "period",round(sum(t.total_length)/sum(t.total_time)*3.6,1) "speed"
+        from
+        <include refid="contrastiveTable"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1=1
+        <include refid="contrastiveConditionDate"/>
+        <if test="dateproperty == 1">
+            and t1.is_workday = 1
+        </if>
+        <if test="dateproperty == 0">
+            and t1.is_workday = 0
+        </if>
+        <include refid="contrastiveFid"/>
+        = #{fid}
+        <include refid="contrastiveGroupOrderBy"/>
+    </select>
+
+    <select id="getContrastiveTpi" parameterType="map" resultType="map">
+        select
+        <include refid="contrastiveCheck_period"/>
+        "period",round(avg(t.tpi),2) "tpi"
+        from
+        <include refid="contrastiveTable"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1=1
+        <include refid="contrastiveConditionDate"/>
+        <if test="dateproperty == 1">
+            and t1.is_workday = 1
+        </if>
+        <if test="dateproperty == 0">
+            and t1.is_workday = 0
+        </if>
+        <include refid="contrastiveFid"/>
+        = #{fid}
+        <include refid="contrastiveGroupOrderBy"/>
+
+    </select>
+
+    <select id="getTotalTpi" parameterType="map" resultType="map">
+        select
+        <include refid="totalDate"/>
+        round(avg(t.tpi),2) "tpi"
+        from
+        <include refid="contrastiveTable"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1=1
+        <include refid="contrastiveConditionDate"/>
+        <include refid="peakPeriod"/>
+        <if test="dateproperty == 1">
+            and t1.is_workday = 1
+        </if>
+        <if test="dateproperty == 0">
+            and t1.is_workday = 0
+        </if>
+        <include refid="contrastiveFid"/>
+        = #{fid}
+        <include refid="totalGroup"/>
+    </select>
+    <select id="getTotalSpeed" parameterType="map" resultType="map">
+        select
+        <include refid="totalDate"/>
+        round(sum(t.total_length)/sum(t.total_time)*3.6,1) "speed"
+        from
+        <include refid="contrastiveTable"/>
+        t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        where 1=1
+        <include refid="contrastiveConditionDate"/>
+        <include refid="peakPeriod"/>
+        <if test="dateproperty == 1">
+            and t1.is_workday = 1
+        </if>
+        <if test="dateproperty == 0">
+            and t1.is_workday = 0
+        </if>
+        <include refid="contrastiveFid"/>
+        = #{fid}
+        <include refid="totalGroup"/>
+    </select>
+    <select id="getRoadRunState" parameterType="map" resultType="map">
+        select b.fid as "roadsectFid",b.fname as "roadsectName",
+        round(speedtoconindex(sum(t.total_length)/sum(t.total_time)*3.6, avg(b.road_type_fid)),2) as
+        "index"
+        from t_tpi_roadsect_speed t ,t_base_roadsect b
+        where t.roadsect_fid = b.fid
+        <include refid="sql_condition"/>
+        <if test="district_fid != null and district_fid != ''">
+            and b.district_fid = #{district_fid}
+        </if>
+        group by b.fid,b.fname
+    </select>
+    <select id="getRoadFlevelNum" parameterType="map" resultType="map">
+        select t1.fid as "levelId",t1.fname as "levelName",count(a.fid) as "count"
+        from t_base_roadsect a,(select b.fid,b.fname from t_base_road_type b group by b.fid,b.fname) t1
+        where a.road_type_fid = t1.fid
+        <if test="district_fid != null and district_fid != ''">
+            and a.district_fid = #{district_fid}
+        </if>
+        group by t1.fid,t1.fname
+        order by t1.fid
+    </select>
+
+    <select id="getCongestionRoadInfo" parameterType="map" resultType="map">
+        select
+        t1."roadsectFid",t1."roadsectName",t1."roadsectFrom",t1."roadsectTo",t1."containBuslane",t1."proneCongestion",
+        t1."proneAccident",t1."proneWaterlogging",t1."congestionDuration",t1."constructionStatus",
+        t1."speedRatio",
+        t1."congestionTimeSpace",
+        t1."congestionLength",
+        t1."speed",t1."index"
+        from (
+        select b.fid as "roadsectFid",b.fname as "roadsectName",
+        b.roadsect_from as "roadsectFrom",b.roadsect_to as "roadsectTo",
+        c.contain_buslane as "containBuslane",c.prone_congestion as "proneCongestion",
+        c.prone_accident as "proneAccident",c.prone_waterlogging as "proneWaterlogging",
+        d.congestion_duration as "congestionDuration",d.construction_status as "constructionStatus",
+        d.speed_ratio as "speedRatio",
+        nvl(d.congestion_time_space,0) as "congestionTimeSpace",
+        d.congestion_length as "congestionLength",
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "speed",
+        round(speedtoconindex(sum(t.total_length)/sum(t.total_time)*3.6, avg(b.road_type_fid)),2) as
+        "index"
+        from t_tpi_roadsect_speed t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_roadsect b,t_tpi_roadsect_attribute c,t_tpi_roadsect_running d
+        where t.roadsect_fid = b.fid
+        and b.fid = c.roadsect_fid
+        and b.fid = d.roadsect_fid
+        and d.fdate = 20191026
+        and t.sample_vehicle &gt; 100
+        /*公交专用道*/
+        <if test='laneType == "1" '>
+            and c.contain_buslane = 1
+        </if>
+        /*潮汐车道*/
+        <if test='laneType == "2" '>
+
+        </if>
+        /*HOV车道*/
+        <if test='laneType == "3" '>
+
+        </if>
+        /*施工路段*/
+        <if test='roadsectAttribute == "1" '>
+            and d.construction_status = 1
+        </if>
+        /*事故多发路段*/
+        <if test='roadsectAttribute == "2" '>
+            and c.prone_accident = 1
+        </if>
+        /*停车收费路段*/
+        <if test='roadsectAttribute == "3" '>
+            and c.contain_park = 1
+        </if>
+        <if test="district_fid != null and district_fid != ''">
+            and b.district_fid = #{district_fid}
+        </if>
+        <include refid="sql_condition"/>
+        group by b.fid,b.fname,b.roadsect_from,b.roadsect_to,c.contain_buslane,c.prone_congestion,
+        c.prone_accident,c.prone_waterlogging,d.congestion_duration,d.construction_status,
+        d.speed_ratio,
+        d.congestion_time_space,
+        d.congestion_length
+        order by round(speedtoconindex(sum(t.total_length)/sum(t.total_time)*3.6,
+        avg(b.road_type_fid)),2) desc) t1
+        where t1."index" &gt;= 6
+    </select>
+    <select id="getCongestionRoadInfoByPage" parameterType="map" resultType="map">
+        select t3.fid as "roadsectFid",t3.fname as "roadsectName",
+        t3.roadsect_from as "roadsectFrom",t3.roadsect_to as "roadsectTo",
+        t3.contain_buslane as "containBuslane",t3.prone_congestion as "proneCongestion",
+        t3.prone_accident as "proneAccident",t3.prone_waterlogging as "proneWaterlogging",
+        t3.contain_park as "containPark",
+        t3.congestion_duration as "congestionDuration",t3.construction_status as "constructionStatus",
+        t3.speed_ratio as "speedRatio",
+        t3.congestion_time_space as "congestionTimeSpace",
+        t3.congestion_length as "congestionLength",
+        t3."speed" as "speed",t3."index" as "index"
+        from (
+        select t2.fid,t2.fname,t2.roadsect_from,t2.roadsect_to,t2.contain_buslane,t2.prone_congestion,
+        t2.prone_accident,t2.prone_waterlogging,t2.contain_park,t2.congestion_duration,t2.construction_status,
+        t2.speed_ratio,
+        t2.congestion_time_space,
+        t2.congestion_length,
+        t2."speed",t2."index",rownum as "rownum"
+        from (
+        select tt1.fid,tt1.fname,
+        tt1.roadsect_from,tt1.roadsect_to,
+        tt1.contain_buslane,tt1.prone_congestion,
+        tt1.prone_accident,tt1.prone_waterlogging,
+        tt1.contain_park,
+        tt1.congestion_duration,
+        tt1.construction_status,
+
+        tt1.speed_ratio,
+        tt1.congestion_time_space,
+        tt1.congestion_length,
+
+        tt1."speed",tt1."index"
+        from (
+        select b.fid,b.fname,
+        b.roadsect_from,b.roadsect_to,
+        c.contain_buslane,c.prone_congestion,
+        c.prone_accident,c.prone_waterlogging,
+        c.contain_park,
+        d.congestion_duration,
+        d.construction_status,
+
+        d.speed_ratio,
+        nvl(d.congestion_time_space,0) as congestion_time_space,
+        d.congestion_length,
+
+        round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "speed",
+        round(speedtoconindex(sum(t.total_length)/sum(t.total_time)*3.6, avg(b.road_type_fid)),2) as
+        "index"
+        from t_tpi_roadsect_speed t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_roadsect b,t_tpi_roadsect_attribute c,t_tpi_roadsect_running d
+        where t.roadsect_fid = b.fid
+        and b.fid = c.roadsect_fid
+        and b.fid = d.roadsect_fid
+        and d.fdate = 20191026
+        and t.sample_vehicle &gt; 100
+        /*公交专用道*/
+        <if test='laneType == "1" '>
+            and c.contain_buslane = 1
+        </if>
+        /*HOV车道*/
+        <if test='laneType == "2" '>
+
+        </if>
+        /*潮汐车道*/
+        <if test='laneType == "3" '>
+
+        </if>
+        /*施工路段*/
+        <if test='roadsectAttribute == "1" '>
+            and d.construction_status = 1
+        </if>
+        /*事故多发路段*/
+        <if test='roadsectAttribute == "2" '>
+            and c.prone_accident = 1
+        </if>
+        /*停车收费路段*/
+        <if test='roadsectAttribute == "3" '>
+            and c.contain_park = 1
+        </if>
+        <if test="district_fid != null and district_fid != ''">
+            and b.district_fid = #{district_fid}
+        </if>
+        <include refid="sql_condition"/>
+        group by b.fid,b.fname,b.roadsect_from,b.roadsect_to,c.contain_buslane,c.prone_congestion,
+        c.prone_accident,c.prone_waterlogging,c.contain_park,d.congestion_duration,d.construction_status,
+        d.speed_ratio,d.congestion_time_space,d.congestion_length
+        order by round(speedtoconindex(sum(t.total_length)/sum(t.total_time)*3.6,
+        avg(b.road_type_fid)),2) desc
+        ) tt1
+        where tt1."index" &gt;= 6
+        )t2
+        where rownum &lt;= #{pageNum} * #{pageSize} ) t3
+        where t3."rownum" &gt; (#{pageNum}-1)*#{pageSize}
+    </select>
+    <select id="getArrivalLeaveFreightTransportNumByDistrict" parameterType="map" resultType="map">
+        select t.district_fid as "FID",t2.fname as "FNAME",floor(avg(t.leave_volume)) as
+        "LEAVE_VOLUME",floor(avg(t.arrival_volume)) as "ARRIVAL_VOLUME"
+        from t_vpm_district_leave_arrival t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_district t2
+        where 1 = 1
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        and t.district_fid = t2.fid
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and ((t.HH >= 7 and t.HH <= 9) or (t.HH >= 17 and t.HH <= 19)) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and t.HH >= 7 and t.HH <= 9 ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and t.HH >= 17 and t.HH <= 19 ]]>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        group by t.district_fid,t2.fname
+        order by t.district_fid,t2.fname
+    </select>
+
+    <select id="getArrivalLeaveFreightTransportNumByBlock" parameterType="map" resultType="map">
+        select t.block_fid as "FID",t2.fname as "FNAME",floor(avg(t.leave_volume)) as
+        "LEAVE_VOLUME",floor(avg(t.arrival_volume)) as "ARRIVAL_VOLUME"
+        from t_vpm_block_leave_arrival t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_block t2
+        where 1 = 1
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        and t.block_fid = t2.fid
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and ((t.HH >= 7 and t.HH <= 9) or (t.HH >= 17 and t.HH <= 19)) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and t.HH >= 7 and t.HH <= 9 ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and t.HH >= 17 and t.HH <= 19 ]]>
+        </if>
+        group by t.block_fid,t2.fname
+        order by t.block_fid,t2.fname
+    </select>
+    <select id="getArrivalLeaveFreightTransportNumByDistrictByHour" parameterType="map"
+            resultType="map">
+        select t.district_fid as "FID",t2.fname as "FNAME",t.HH as "TIME",floor(avg(t.leave_volume)) as
+        "LEAVE_VOLUME",floor(avg(t.arrival_volume)) as "ARRIVAL_VOLUME"
+        from t_vpm_district_leave_arrival t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_district t2
+        where 1 = 1
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        and t.district_fid = t2.fid
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and ((t.HH >= 7 and t.HH <= 9) or (t.HH >= 17 and t.HH <= 19)) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and t.HH >= 7 and t.HH <= 9 ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and t.HH >= 17 and t.HH <= 19 ]]>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        group by t.district_fid,t2.fname,t.HH
+        order by t.district_fid,t2.fname,t.HH
+    </select>
+
+
+    <select id="getArrivalLeaveFreightTransportNumByBlockByHour" parameterType="map" resultType="map">
+        select t.block_fid as "FID",t2.fname as "FNAME",t.HH as "TIME",floor(avg(t.leave_volume)) as
+        "LEAVE_VOLUME",floor(avg(t.arrival_volume)) as "ARRIVAL_VOLUME"
+        from t_vpm_block_leave_arrival t
+        left join t_base_date_list t1 on t.fdate = t1.fdate,
+        t_base_block t2
+        where 1 = 1
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        and t.block_fid = t2.fid
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and ((t.HH >= 7 and t.HH <= 9) or (t.HH >= 17 and t.HH <= 19)) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and t.HH >= 7 and t.HH <= 9 ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and t.HH >= 17 and t.HH <= 19 ]]>
+        </if>
+        group by t.block_fid,t2.fname,t.HH
+        order by t.block_fid,t2.fname,t.HH
+    </select>
+    <select id="getFreightTransportHpArrivalLeave" parameterType="map" resultType="map">
+        select
+        <include refid="sql_time"/>
+        <if test="statistical_type == 'leave'">
+            t.to_freight_fid
+        </if>
+        <if test="statistical_type == 'arrival'">
+            t.from_freight_fid
+        </if>
+        as fid,t2.fname,
+        floor(avg(volume)) volume
+        from t_vpm_freight_od t
+        left join t_base_date_list t1 on t.fdate = t1.fdate
+        <if test="statistical_type == 'leave'">
+            left join t_base_freight t2 on t.to_freight_fid = t2.fid
+        </if>
+        <if test="statistical_type == 'arrival'">
+            left join t_base_freight t2 on t.from_freight_fid = t2.fid
+        </if>
+        where 1 = 1
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        and
+        <if test="statistical_type == 'leave'">
+            t.from_freight_fid
+        </if>
+        <if test="statistical_type == 'arrival'">
+            t.to_freight_fid
+        </if>
+        = #{fid}
+        <if test="timeprecision == 'hour'">
+            <if test="hh != null and hh != ''">
+                and t.HH = #{hh}
+            </if>
+        </if>
+        <include refid="sql_condition_car"/>
+        group by
+        <include refid="sql_time_grouporder"/>
+        <if test="statistical_type == 'leave'">
+            t.to_freight_fid,t2.fname
+        </if>
+        <if test="statistical_type == 'arrival'">
+            t.from_freight_fid,t2.fname
+        </if>
+        order by
+        <include refid="sql_time_grouporder"/>
+        <if test="statistical_type == 'leave'">
+            t.to_freight_fid
+        </if>
+        <if test="statistical_type == 'arrival'">
+            t.from_freight_fid
+        </if>
+
+    </select>
+    <select id="getFreightTransportPass" parameterType="map" resultType="map">
+        select
+        b.fid as "fid",
+        b.fname as "roadname",
+        '('||b.roadsect_from||'-'||b.roadsect_to||')' as "direct",
+        floor(avg(t.volume)) as "volume",
+        round((avg(t.speed)), 1) as "speed",
+        round(avg(c.speed), 1) as "roadSpeed"
+        from t_vpm_corridor_status t
+        left join t_base_date_list t1 on t1.fdate = t.fdate
+        left join t_base_roadsect b on t.corridor_fid = b.fid
+        left join t_tpi_roadsect_speed c on t.corridor_fid = c.roadsect_fid and t.fdate = c.fdate and
+        t.period = c.period
+        left join t_base_direction d on b.dir_fid = d.fid
+        where 1=1
+        <if test="startdate == null">
+            and c.fdate = #{time}
+        </if>
+        <if test='vehicle_type !=null and vehicle_type !="" '>
+            and t.vehicle_type = #{vehicle_type}
+        </if>
+        <if test="timeprecision == 'hour'">
+            <if test="hh != null and hh != ''">
+                and floor((t.period - 1) / 12 + 1) = #{hh}
+            </if>
+        </if>
+        <include refid="sql_condition"/>
+        group by b.fid,b.fname,'('||b.roadsect_from||'-'||b.roadsect_to||')'
+        order by 1,2,3
+    </select>
+    <select id="getHotpointInfo" parameterType="map" resultType="map">
+        select t1.fid as "fid",t1.fname as "fname",t1.lat as "lat",t1.lon as "lon"
+        from T_BASE_hotpoint t1
+        where 1 = 1
+        <if test="district_fid != null and district_fid != ''">
+            and t1.district_Fid = #{district_fid}
+        </if>
+
+    </select>
+    <select id="getRoadSixDData" resultType="com.sutpc.its.dto.RoadSixDDto">
+        select
+        b.fid as "roadTypeId",
+        b.fname as "roadType",
+        a.jam_ratio as "jamRatio",
+        COALESCE(a.avg_jam_time,0) as "avgJamTime",
+        a.peak_speed_kt as "peakSpeedKt",
+        a.peak_speed_sk as "peakSpeedSk",
+        a.avg_tpi as "avgTpi",
+        a.peak_speed_std as "peakSpeedStd"
+        from (select * from t_tpi_roadtype_portrait
+        where substr(update_date,1,6) = #{date} and
+        <if test="timeproperty != null and timeproperty != ''">
+            <if test="timeproperty == 'morning_peak'">
+                time_period = 'am'
+            </if>
+            <if test="timeproperty == 'evening_peak'">
+                time_period = 'pm'
+            </if>
+            <if test="timeproperty == 'all_peak'">
+                time_period = 'apm'
+            </if>
+        </if>
+        ) a
+        inner join (select distinct fid,fname from t_base_road_type) b on a.road_type_fid = b.fid
+    </select>
+    <select id="getRoadLevelDistribution" resultType="com.sutpc.its.dto.RoadLevelDistributionDto">
+    select
+    c.fid as "roadTypeId",
+    c.fname as "roadType",
+    a.peak_statue as "peakStatus",
+    count(a.peak_statue) "count"
+    from (select * from t_tpi_roadsect_portrait where substr(update_date,1,6)=#{date}) a
+    left join t_base_roadsect b on a.roadsect_fid = b.fid
+    left join (select distinct fid,fname from t_base_road_type) c on b.road_type_fid = c.fid
+    group by c.fid,c.fname,a.peak_statue
+    order by 1,2,3
+  </select>
+    <select id="getRoadCharacteristicData" resultType="com.sutpc.its.dto.RoadCharacteristicDto">
+        select a.roadsect_fid "id",
+        b.fname "name",
+        b.roadsect_from "from",
+        b.roadsect_to "to",
+        round(a.speed,1) "speed",
+        round(speedtoconindex(a.speed,b.road_type_fid),1) "tpi"
+        from (
+        select t.roadsect_fid ,sum(total_length)/sum(total_time)*3.6 as speed from t_tpi_roadsect_speed
+        t
+        where
+        1=1
+        and roadsect_fid = #{roadsectFid}
+        <if test="timeproperty == 'morning_peak'">
+            and period between 85 and 108
+        </if>
+        <if test="timeproperty == 'evening_peak'">
+            and period between 211 and 234
+        </if>
+        <if test="timeproperty == 'all_peak'">
+            and (period between 85 and 108 or period between 211 and 234)
+        </if>
+        and fdate between to_number(#{date}||'00') and to_number(#{date}||'31')
+        and fdate in (select fdate from t_base_date_list where is_workday=1)
+        group by t.roadsect_fid
+        ) a left join t_base_roadsect b on a.roadsect_fid = b.fid
+    </select>
+    <select id="getRoadSetId" resultType="java.lang.Integer">
+    select distinct contain_buslane "roadSet" from t_tpi_roadsect_attribute
+    where roadsect_fid = #{id}
+  </select>
+    <select id="getRoadPortrayalTag" resultType="com.sutpc.its.dto.RoadPortrayalTagDto">
+    select
+    peak_statue as "peakStatus",
+    prone_congestion as "proneCongestion",
+    congestion_degree as "congestionDegree"
+    from t_tpi_roadsect_portrait where roadsect_fid = #{id} and substr(update_date,1,6) = #{date}
+  </select>
+    <select id="getRoadsectDistribution" resultType="com.sutpc.its.dto.RoadsectDistributionDto">
+    select roadsect_fid as "id", prone_congestion as "proneCongestion"
+    from t_tpi_roadsect_portrait t
+    where substr(t.update_date, 0, 6) = #{date}
+    and t.peak_statue = '拥堵'
+    order by 1
+  </select>
+    <select id="getRoadSixDDataById" resultType="com.sutpc.its.dto.RoadSixDByIdDto">
+        select
+        b.fname as "name",
+        a.jam_ratio as "jamRatio",
+        COALESCE(a.avg_jam_time,0) as "avgJamTime",
+        a.peak_speed_kt as "peakSpeedKt",
+        a.peak_speed_sk as "peakSpeedSk",
+        a.avg_tpi as "avgTpi",
+        a.peak_speed_std as "peakSpeedStd"
+        from t_tpi_road_portrait a
+        left join t_base_roadsect b on a.road_fid = b.road_fid
+        where substr(a.update_date,1,6)= #{date}
+        <if test="id != null and id != ''">
+            and b.fid = #{id}
+        </if>
+        <if test="timeproperty != null and timeproperty != ''">
+            <if test="timeproperty == 'morning_peak'">
+                and time_period = 'am'
+            </if>
+            <if test="timeproperty == 'evening_peak'">
+                and time_period = 'pm'
+            </if>
+            <if test="timeproperty == 'all_peak'">
+                and time_period = 'apm'
+            </if>
+        </if>
+    </select>
+    <select id="getRoadSixDDataAll" resultType="com.sutpc.its.dto.RoadSixDByIdDto">
+        select
+        round(avg(a.jam_ratio),2) as "jamRatio",
+        COALESCE(round(avg(a.avg_jam_time),2),0) as "avgJamTime",
+        round(avg(a.peak_speed_kt),2) as "peakSpeedKt",
+        round(avg(a.peak_speed_sk),2) as "peakSpeedSk",
+        round(avg(a.avg_tpi),2) as "avgTpi",
+        round(avg(a.peak_speed_std),2) as "peakSpeedStd"
+        from t_tpi_road_portrait a
+        left join t_base_roadsect b on a.road_fid = b.road_fid
+        where substr(a.update_date,1,6)= #{date}
+        <if test="timeproperty != null and timeproperty != ''">
+            <if test="timeproperty == 'morning_peak'">
+                and time_period = 'am'
+            </if>
+            <if test="timeproperty == 'evening_peak'">
+                and time_period = 'pm'
+            </if>
+            <if test="timeproperty == 'all_peak'">
+                and time_period = 'apm'
+            </if>
+        </if>
+    </select>
+
+    <select id="getRoadSectionJamCounts" resultType="com.sutpc.its.dto.RoadSectionJamCountDto">
+    select count(*) as "count"
+    from t_tpi_roadsect_portrait t
+    where substr(t.update_date, 0, 6) = #{date}
+    and t.peak_statue = '拥堵'
+    and t.prone_congestion='是'
+    order by 1
+  </select>
+
+    <sql id="sql_condition">
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and ((t.period >= #{morning_start_period} and t.period <=#{morning_end_period}) or (t.period >= #{evening_start_period} and t.period <=#{evening_end_period})) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and t.period >= #{morning_start_period} and t.period <=#{morning_end_period} ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and t.period >= #{evening_start_period} and t.period <=#{evening_end_period} ]]>
+        </if>
+        <if test='timeproperty == "not_peak"'>
+            <![CDATA[and (t.period < #{morning_start_period} or (t.period >#{morning_end_period} and t.period < #{evening_start_period}) or t.period >#{evening_end_period}) ]]>
+        </if>
+        <if test="timeproperty=='user_defined'">
+            <if test='startperiod != "" and startperiod != 0'>
+                <![CDATA[and t.period >= #{startperiod}]]>
+            </if>
+            <if test='endperiod != "" and endperiod != 0 '>
+                <![CDATA[and t.period <= #{endperiod}]]>
+            </if>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+    </sql>
+
+    <sql id="sql_condition_car">
+        <if test='startdate !=null and startdate !="" '>
+            <![CDATA[and t.fdate >= #{startdate} ]]>
+        </if>
+        <if test='enddate !=null and enddate !="" '>
+            <![CDATA[and t.fdate <= #{enddate} ]]>
+        </if>
+        <if test="timeproperty == 'all_peak'  ">
+            <![CDATA[and (((t.hh +1)>= 7 and (t.hh +1) <=9) or ((t.hh +1) >= 18 and (t.hh +1) <=19)) ]]>
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            <![CDATA[and (t.hh +1) >= 7 and (t.hh +1) <=9 ]]>
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            <![CDATA[and (t.hh +1) >= 18 and (t.hh +1) <=19 ]]>
+        </if>
+        <if test='dateproperty == "1"'>
+            <![CDATA[and t1.is_workday = 1  ]]>
+        </if>
+        <if test='dateproperty == "0"'>
+            <![CDATA[and t1.is_workday = 0 ]]>
+        </if>
+    </sql>
+
+    <sql id="sql_permIds">
+        in
+        <foreach close=")" collection="permIds" item="item"
+                 open="(" separator=",">
+            #{item}
+        </foreach>
+    </sql>
+
+    <sql id="sql_time">
+        <if test="timeprecision == 'hour'">
+            (t.hh+1) as time ,
+        </if>
+        <if test="timeprecision == 'day'">
+
+        </if>
+    </sql>
+
+
+    <sql id="sql_time_grouporder">
+        <if test="timeprecision == 'hour'">
+            (t.hh+1),
+        </if>
+        <if test="timeprecision == 'day'">
+        </if>
+    </sql>
+
+    <sql id="sql_od_fid_type">
+        <if test="check_type == 'block'">
+            <if test="statistical_type == 'leave'">
+                t.to_block_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.from_block_fid
+            </if>
+        </if>
+        <if test="check_type == 'district'">
+            <if test="statistical_type == 'leave'">
+                t.to_district_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.from_district_fid
+            </if>
+        </if>
+        <if test="check_type == 'poi'">
+            t.block_fid
+        </if>
+        <if test="check_type == 'poi_to_district'">
+            t.district_fid
+        </if>
+        <if test="check_type == 'group'">
+            <if test="statistical_type == 'leave'">
+                t.to_group_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.from_group_fid
+            </if>
+        </if>
+        <if test="check_type == 'subsect'">
+            <if test="statistical_type == 'leave'">
+                t.to_subsect_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.from_subsect_fid
+            </if>
+        </if>
+    </sql>
+
+    <sql id="sql_od_table">
+        <if test="check_type == 'block'">
+            t_vpm_block_od
+        </if>
+        <if test="check_type == 'district'">
+            (select a.fdate,a.vehicle_type,a.hh,a.from_district_fid,a.to_district_fid,a.volume from
+            t_vpm_district_od a
+            <if test="od_flag == zhanjiang">
+                union all
+                select b.fdate,b.vehicle_type,b.hh,b.from_fid from_district_fid,b.to_fid
+                to_district_fid,b.volume from t_vpm_district_outer_od b
+            </if>
+            )
+        </if>
+        <if test="check_type == 'poi'">
+            t_vpm_poi_od
+        </if>
+        <if test="check_type == 'poi_to_district'">
+            (select * from t_vpm_poi_od a left join t_base_block b on a.block_fid = b.fid)
+        </if>
+        <if test="check_type == 'group'">
+            (select a.fdate,a.vehicle_type,a.hh,a.from_group_fid,a.to_group_fid,a.volume from
+            t_vpm_group_od a
+            union all
+            select b.fdate,b.vehicle_type,b.hh,b.from_fid from_group_fid,b.to_fid to_group_fid,b.volume
+            from t_vpm_group_outer_od b )
+        </if>
+        <if test="check_type == 'subsect'">
+            (select a.fdate,a.vehicle_type,a.hh,a.from_subsect_fid,a.to_subsect_fid,a.volume from
+            t_vpm_subsect_od a
+            union all
+            select b.fdate,b.vehicle_type,b.hh,b.from_fid from_subsect_fid,b.to_fid
+            to_subsect_fid,b.volume from t_vpm_subsect_outer_od b )
+        </if>
+    </sql>
+
+    <sql id="sql_od_fid_row_name">
+        <if test="check_type == 'block'">
+            <if test="statistical_type == 'leave'">
+                t.from_block_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.to_block_fid
+            </if>
+        </if>
+        <if test="check_type == 'district'">
+            <if test="statistical_type == 'leave'">
+                t.from_district_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.to_district_fid
+            </if>
+        </if>
+        <if test="check_type == 'poi'">
+            t.poi_fid
+        </if>
+        <if test="check_type == 'poi_to_district'">
+            t.poi_fid
+        </if>
+        <if test="check_type == 'group'">
+            <if test="statistical_type == 'leave'">
+                t.from_group_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.to_group_fid
+            </if>
+        </if>
+        <if test="check_type == 'subsect'">
+            <if test="statistical_type == 'leave'">
+                t.from_subsect_fid
+            </if>
+            <if test="statistical_type == 'arrival'">
+                t.to_subsect_fid
+            </if>
+        </if>
+    </sql>
+
+    <sql id="sql_trips_fid_type">
+        <if test="check_type == 'district'">
+            t.district_fid
+        </if>
+        <if test="check_type == 'block'">
+            t.block_fid
+        </if>
+        <if test="check_type == 'group'">
+            t.group_fid
+        </if>
+        <if test="check_type == 'subsect'">
+            t.subsect_fid
+        </if>
+    </sql>
+
+    <sql id="sql_trips_table">
+        <if test="check_type == 'district'">
+            t_vpm_district_leave_arrival
+        </if>
+        <if test="check_type == 'block'">
+            t_vpm_block_leave_arrival
+        </if>
+        <if test="check_type == 'group'">
+            t_vpm_group_leave_arrival
+        </if>
+        <if test="check_type == 'subsect'">
+            t_vpm_subsect_leave_arrival
+        </if>
+    </sql>
+
+    <sql id="contrastiveConditionDate">
+        <if test="statistics == 'year'">
+            and t.fdate BETWEEN TO_NUMBER(substr(#{fdate},1,4)||'0000') and TO_NUMBER(substr(#{fdate},1,4)||'1231')
+        </if>
+        <if test="statistics == 'month'">
+            and t.fdate BETWEEN TO_NUMBER(substr(#{fdate},1,6)||'00') and TO_NUMBER(substr(#{fdate},1,6)||'31')
+        </if>
+        <if test="statistics == 'week'">
+            and t.fdate &gt;= #{startdate}
+            and t.fdate &lt;= #{enddate}
+        </if>
+        <if test="statistics == 'day'">
+            and t.fdate = #{date}
+        </if>
+    </sql>
+
+    <sql id="contrastiveCheck_period">
+        <if test="timeprecision == 'five_min'">
+            t.period
+        </if>
+        <if test="timeprecision == 'fifteen_min'">
+            floor((t.period-1)/3+1)
+        </if>
+        <if test="timeprecision == 'half_an_hour'">
+            floor((t.period-1)/6+1)
+        </if>
+        <if test="timeprecision == 'hour'">
+            floor((t.period-1)/12+1)
+        </if>
+    </sql>
+
+    <sql id="contrastiveGroupOrderBy">
+        <if test="timeprecision == 'five_min'">
+            group by t.period
+            order by t.period
+        </if>
+        <if test="timeprecision == 'fifth_min'">
+            group by floor((t.period-1)/3+1)
+            order by floor((t.period-1)/3+1)
+        </if>
+        <if test="timeprecision == 'half_an_hour'">
+            group by floor((t.period-1)/6+1)
+            order by floor((t.period-1)/6+1)
+        </if>
+        <if test="timeprecision == 'hour'">
+            group by floor((t.period-1)/12+1)
+            order by floor((t.period-1)/12+1)
+        </if>
+    </sql>
+
+    <sql id="contrastiveFid">
+        <if test="type == 'district'">
+            and t.district_fid
+        </if>
+        <if test="type == 'subsect'">
+            and t.subsect_fid
+        </if>
+        <if test="type == 'poi'">
+            and t.poi_fid
+        </if>
+        <if test="type == 'road'">
+            and t.road_fid
+        </if>
+        <if test="type == 'roadsect'">
+            and t.roadsect_fid
+        </if>
+    </sql>
+
+    <sql id="contrastiveTable">
+        <if test="type == 'district'">
+            <if test="index == 'avg_speed'">
+                t_tpi_district_speed
+            </if>
+            <if test="index == 'tpi'">
+                t_tpi_district_tpi
+            </if>
+        </if>
+        <if test="type == 'subsect'">
+            t_tpi_subsect_status
+        </if>
+        <if test="type == 'poi'">
+            t_tpi_poi_status
+        </if>
+        <if test="type == 'road'">
+            t_tpi_road_speed
+        </if>
+        <if test="type == 'roadsect'">
+            t_tpi_roadsect_speed
+        </if>
+    </sql>
+
+    <sql id="peakPeriod">
+        <if test="timeproperty == 'morning_peak'">
+            <![CDATA[and t.period >= #{morning_start_period} and t.period <=#{morning_end_period} ]]>
+        </if>
+        <if test="timeproperty == 'evening_peak'">
+            <![CDATA[and t.period >= #{evening_start_period} and t.period <= #{evening_end_period}]]>
+        </if>
+        <if test="timeproperty == 'flat_peak'">
+            <![CDATA[and t.period >= #{flat_start_period} and t.period <= #{flat_end_period}]]>
+        </if>
+        <if test="timeproperty == all_day">
+            <![CDATA[and t.period >= 1 and t.period <= 288]]>
+        </if>
+    </sql>
+    <sql id="totalDate">
+        <if test="statistics == 'year'">
+            substr(t.fdate,1,4) as "date",
+        </if>
+        <if test="statistics == 'month'">
+            substr(t.fdate,1,6) as "date",
+        </if>
+        <if test="statistics == 'week'">
+
+        </if>
+        <if test="statistics == 'day'">
+            t.fdate "date",
+        </if>
+    </sql>
+    <sql id="totalGroup">
+        <if test="statistics == 'year'">
+            group by substr(t.fdate,1,4)
+        </if>
+        <if test="statistics == 'month'">
+            group by substr(t.fdate,1,6)
+        </if>
+        <if test="statistics == 'week'">
+
+        </if>
+        <if test="statistics == 'day'">
+            group by t.fdate
+        </if>
+    </sql>
+</mapper>

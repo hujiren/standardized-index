@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.v6.IBikeDao">
+  <select id="getBikeInfo" resultType="com.sutpc.its.po.v6.BikePointPo">
+    SELECT
+    lng as "lng",
+    lat as "lat"
+    FROM
+    t_bike_switch_lock
+    where fdate = #{time}
+    and to_number(substr(TO_CHAR(loc_time/ ( 60 * 60 * 24) +TO_DATE('1970-01-01 08:00:00',
+    'YYYY-MM-DD HH:MI:SS'), 'YYYY-MM-DD HH:MI:SS'),12,2)) = #{hour}
+    and lock_status = #{lockStatus}
+  </select>
+  <select id="getBikeCount" resultType="int">
+    select count(distinct bike_id) from t_bike_switch_lock
+    where fdate = #{time}
+    and to_number(substr(TO_CHAR(loc_time/ ( 60 * 60 * 24) +TO_DATE('1970-01-01 08:00:00',
+    'YYYY-MM-DD HH:MI:SS'), 'YYYY-MM-DD HH:MI:SS'),12,2)) = #{hour}
+    and lock_status = #{lockStatus}
+  </select>
+
+  <select id="getBikeUseCount" resultType="int">
+    select count(*) from t_bike_switch_lock
+    where fdate = #{time}
+    and to_number(substr(TO_CHAR(loc_time/ ( 60 * 60 * 24) +TO_DATE('1970-01-01 08:00:00',
+    'YYYY-MM-DD HH:MI:SS'), 'YYYY-MM-DD HH:MI:SS'),12,2)) = #{hour}
+    and lock_status = #{lockStatus}
+  </select>
+
+  <select id="getSubwaySurroundAmount" resultType="com.sutpc.its.vo.StationSurroundRankingVo">
+    select
+    stop_name as "name",
+    count(*) as "count"
+    from t_bike_metro_transfer where fdate = #{time} and floor((period-1)/12+1) = #{hour} and
+    stop_name is not null
+    <if test="lockStatus == 1">
+      and type = '出发'
+    </if>
+    <if test="lockStatus == 2">
+      and type = '到达'
+    </if>
+    group by stop_name
+    order by 2 desc
+  </select>
+
+  <select id="getBusSurroundAmount" resultType="com.sutpc.its.vo.StationSurroundRankingVo">
+    select
+    stop_name as "name",
+    count(*) as "count"
+    from t_bike_bus_transfer where fdate = #{time} and floor((period-1)/12+1) = #{hour} and
+    stop_name is not null
+    <if test="lockStatus == 1">
+      and type = '出发'
+    </if>
+    <if test="lockStatus == 2">
+      and type = '到达'
+    </if>
+    group by stop_name
+    order by 2 desc
+  </select>
+</mapper>

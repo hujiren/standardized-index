@@ -1,0 +1,1965 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IDataQueryDao">
+
+  <select id="getCalenderMonthData" resultType="map" parameterType="map">
+    select a.fdate time,
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) speed,
+    round(avg(b.tpi), 1) exponent
+    from t_tpi_district_speed a
+    left join t_tpi_district_tpi b on a.fdate = b.fdate
+    and a.period = b.period
+    and a.district_fid = b.district_fid
+    where 1 = 1
+    and a.fdate &gt;= #{monthBegin} and a.fdate &lt;= #{monthEnd}
+    and a.road_type_fid in
+    <foreach collection="calender_road_type_fid" item="item" separator="," open="(" close=")">
+      #{item}
+    </foreach>
+    <if test="district_fid != null and district_fid != ''">
+      and a.district_fid = #{district_fid}
+    </if>
+    <if test="timeproperty != null and timeproperty=='morning_peak'">
+      and (a.period &gt;= #{morning_start_period} and a.period &lt;= #{morning_end_period})
+    </if>
+    <if test="timeproperty != null and timeproperty=='evening_peak'">
+      and (a.period &gt;= #{evening_start_period} and a.period &lt;= #{evening_end_period})
+    </if>
+    group by a.fdate
+    order by a.fdate
+  </select>
+  <select id="getCalendarDayData" parameterType="map" resultType="map">
+    select floor((a.period - 1) / 3 + 1) period,
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 2) speed,
+    round(avg(b.tpi), 2) tpi
+    from t_tpi_district_speed a
+    left join t_tpi_district_tpi b on a.fdate = b.fdate
+    and a.period = b.period
+    and a.district_fid = b.district_fid
+    where a.fdate = #{fdate}
+    <if test="district_fid != null and district_fid != ''">
+      and a.district_fid =#{district_fid}
+    </if>
+    group by floor((a.period - 1) / 3 + 1)
+    order by floor((a.period - 1) / 3 + 1)
+  </select>
+  <!--<select id="getCalendarDayData" parameterType="map" resultType="map">
+      select a.period, a.tpi, b.speed
+        from (select floor((period - 1) / 3 + 1) as period,
+                     round(avg(tpi), 1) as TPI
+                from t_tpi_district_tpi
+               where district_fid = #{district_fid}
+                 and fdate = #{fdate}
+               group by floor((period - 1) / 3 + 1)) a
+        left join (select floor((period - 1) / 3 + 1) as period,
+                          round(sum(total_length) / sum(total_time) * 3.6, 1) as speed
+                     from t_tpi_district_speed
+                    where district_fid = #{district_fid}
+                      and fdate = #{fdate}
+                    group by floor((period - 1) / 3 + 1)) b on a.period = b.period
+       order by a.period
+  </select>-->
+  <select id="getCalendarNoWorkdayData" resultType="map" parameterType="map">
+    select *
+    from t_base_date_list
+    where is_workday = 0
+    and fdate &gt;= #{monthBegin}
+    and fdate &lt;= #{monthEnd}
+  </select>
+  <sql id="sql_permIds">
+    in
+    <foreach collection="permIds" item="item" separator=","
+      open="(" close=")">
+      #{item}
+    </foreach>
+  </sql>
+  <sql id="sql_methods">
+    <if test="methods==1">
+      <if test="type=='city'">
+        t.district_fid as fid,
+        y.fname,
+      </if>
+      <if test="type=='district'">
+        t.district_fid as fid,
+        y.fname,
+      </if>
+      <if test="type=='block'">
+        t.block_fid as fid,
+        y.fname,
+      </if>
+      <if test="type=='subsect'">
+        t.subsect_fid as fid,
+        y.fname,
+      </if>
+      <if test="type=='poi'">
+        t.poi_fid as fid,
+        y.fname,
+      </if>
+      <if test="type=='road'">
+        t.road_fid as fid,
+        y.fname||'('||z.fname||')' fname,
+      </if>
+      <if test="type=='roadsect'">
+        t.roadsect_fid as fid,
+        y.fname,
+        y.roadsect_from,
+        y.roadsect_to,
+      </if>
+      <if test="type == 'highspeed'">
+        t.roadsect_fid as fid,
+        y.fname,
+        y.roadsect_from,
+        y.roadsect_to,
+      </if>
+      <if test="type == 'check_line'">
+        y.fname||'('||y.detect_dir||')' as fname,
+        y.fid,
+      </if>
+      <if test="type == 'cross'">
+        y.fid,y.fname||'('||y.dir_name||')' fname,
+      </if>
+    </if>
+  </sql>
+  <sql id="sql_methods_group_order">
+    <if test="methods==1">
+      <if test="type=='city'">
+        t.district_fid,
+        y.fname,
+      </if>
+      <if test="type=='district'">
+        t.district_fid,
+        y.fname,
+      </if>
+      <if test="type=='block'">
+        t.block_fid,
+        y.fname,
+      </if>
+      <if test="type=='subsect'">
+        t.subsect_fid,
+        y.fname,
+      </if>
+      <if test="type=='poi'">
+        t.poi_fid,
+        y.fname,
+      </if>
+      <if test="type=='road'">
+        t.road_fid,
+        y.fname||'('||z.fname||')',
+      </if>
+      <if test="type=='roadsect'">
+        t.roadsect_fid,
+        y.fname,
+        y.roadsect_from,
+        y.roadsect_to,
+      </if>
+      <if test="type == 'highspeed'">
+        t.roadsect_fid,
+        y.fname,
+        y.roadsect_from,
+        y.roadsect_to,
+      </if>
+      <if test="type == 'check_line'">
+        y.fname||'('||y.detect_dir||')',
+        y.fid,
+      </if>
+      <if test="type == 'cross'">
+        y.fid,y.fname||'('||y.dir_name||')',
+      </if>
+      <if test="type == 'roadsection'">
+        y.fname,
+      </if>
+      <if test="type == 'intersection'">
+        <if test="methods==1">
+          b.fid,a.fname||'('||b.approach_dir||')',
+        </if>
+      </if>
+    </if>
+  </sql>
+  <sql id="sql_x">
+    <if test='timeprecision == "five_min" '>
+      floor((t.period-1)/1+1) as "x",
+    </if>
+    <if test='timeprecision == "fifteen_min" '>
+      floor((t.period-1)/3+1) as "x",
+    </if>
+    <if test='timeprecision == "half_an_hour"'>
+      floor((t.period-1)/6+1) as "x",
+    </if>
+    <if test='timeprecision == "hour" '>
+      floor((t.period-1)/12+1) as "x",
+    </if>
+    <if test='timeprecision == "day" '>
+      t.fdate as "x",
+    </if>
+    <if test='timeprecision == "week" '>
+      t1.week_no as "x",
+    </if>
+    <if test='timeprecision == "month" '>
+      substr(t.fdate,5,2) as "x",
+    </if>
+    <if test='timeprecision == "year" '>
+      substr(t.fdate,1,4) as "x",
+    </if>
+  </sql>
+  <sql id="sql_condition">
+    <if test='nowdate !=null and nowdate !="" '>
+      <![CDATA[and t.fdate = #{nowdate} ]]>
+    </if>
+    <if test='nowdate == null or nowdate == "" '>
+      <if test='startdate !=null and startdate !="" '>
+        <![CDATA[and t.fdate >= #{startdate} ]]>
+      </if>
+      <if test='enddate !=null and enddate !="" '>
+        <![CDATA[and t.fdate <= #{enddate} ]]>
+      </if>
+    </if>
+    <if test="timeproperty == 'all_peak'  ">
+      <![CDATA[and ((t.period >= #{morning_start_period} and t.period <= #{morning_end_period}) or (t.period >= #{evening_start_period} and t.period <=#{evening_end_period})) ]]>
+    </if>
+    <if test='timeproperty == "morning_peak"  '>
+      <![CDATA[and t.period >= #{morning_start_period} and t.period <= #{morning_end_period} ]]>
+    </if>
+    <if test='timeproperty == "evening_peak" '>
+      <![CDATA[and t.period >= #{evening_start_period} and t.period <=#{evening_end_period} ]]>
+    </if>
+    <if test='timeproperty == "not_peak"'>
+      <![CDATA[and (t.period < #{morning_start_period} or (t.period >#{morning_end_period} and t.period < #{evening_start_period}) or t.period >#{evening_end_period}) ]]>
+    </if>
+    <if test="timeproperty=='user_defined'">
+      <if test='startperiod != 0'>
+        <![CDATA[and t.period >= #{startperiod}]]>
+      </if>
+      <if test='endperiod != 0 '>
+        <![CDATA[and t.period <= #{endperiod}]]>
+      </if>
+    </if>
+    <if test='dateproperty == "1"'>
+      <![CDATA[and t1.is_workday = 1  ]]>
+    </if>
+    <if test='dateproperty == "0"'>
+      <![CDATA[and t1.is_workday = 0 ]]>
+    </if>
+  </sql>
+
+    <sql id="sql_time">
+        <if test='timePrecisionValue gt 12'>
+            year
+            <if test='timePrecisionValue lt 8641'>
+                ,month
+            </if>
+            <if test='timePrecisionValue lt 289'>
+                ,t.fdate
+            </if>
+        </if>
+        <if test='timePrecisionValue lt 13'>
+          t.period
+        </if>
+    </sql>
+
+    <sql id="sql_period">
+        <if test="timeproperty == 'all_peak'  ">
+            and ((period between  #{morning_start_period} and  #{morning_end_period}) or
+            (period between  #{evening_start_period} and #{evening_end_period}))
+        </if>
+        <if test='timeproperty == "morning_peak"  '>
+            and period between #{morning_start_period} and #{morning_end_period}
+        </if>
+        <if test='timeproperty == "evening_peak" '>
+            and period between #{evening_start_period} and #{evening_end_period}
+        </if>
+        <if test="timeproperty=='user_defined'">
+            and period between #{startperiod} and #{endperiod}
+        </if>
+    </sql>
+  <sql id="sql_grouporderby">
+    <if test='timeprecision == "five_min" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/1+1)
+      order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/1+1)
+    </if>
+    <if test='timeprecision == "fifteen_min" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/3+1) order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/3+1)
+    </if>
+    <if test='timeprecision == "half_an_hour" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/6+1) order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/6+1)
+    </if>
+    <if test='timeprecision == "hour" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/12+1) order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period-1)/12+1)
+    </if>
+    <if test='timeprecision == "day" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      t.fdate order by
+      <include refid="sql_methods_group_order"/>
+      t.fdate
+    </if>
+    <if test='timeprecision == "week" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      t1.week_no order by
+      <include refid="sql_methods_group_order"/>
+      t1.week_no
+    </if>
+    <if test='timeprecision == "month" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,5,2)
+      order by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,5,2)
+    </if>
+    <if test='timeprecision == "year" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,1,4)
+      order by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,1,4)
+    </if>
+  </sql>
+
+
+  <select id="getTpiQueryData" resultType="map" parameterType="map">
+    select
+    <include refid="sql_methods"/>
+    <include refid="sql_x"/>
+    round(avg(t.tpi),2) "y"
+    from
+    <if test="type=='city' or type=='district'">
+      t_tpi_district_tpi t
+    </if>
+    <if test="type=='block'">
+      t_tpi_block_status t
+    </if>
+    <if test="type=='subsect'">
+      t_tpi_subsect_status t
+    </if>
+    <if test="type=='poi'">
+      t_tpi_poi_status t
+    </if>
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join
+    <if test="type=='city' or type=='district'">
+      t_base_district y on y.fid = t.district_fid
+    </if>
+    <if test="type=='block'">
+      t_base_block y on y.fid = t.block_fid
+    </if>
+    <if test="type=='subsect'">
+      t_base_subsect y on y.fid = t.subsect_fid
+    </if>
+    <if test="type=='poi'">
+      t_base_poi y on y.fid = t.poi_fid
+    </if>
+    where 1=1
+
+    <if test="type=='city' or type=='district'">
+      and t.district_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='block'">
+      and t.block_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='subsect'">
+      and t.subsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='poi'">
+      and t.poi_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+  <select id="getSpeedQueryData" parameterType="map" resultType="map">
+    select
+    <include refid="sql_methods"/>
+    <include refid="sql_x"/>
+    <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+      round(speedtoconindex(round(sum(t.total_length)/sum(t.total_time)*3.6,1),avg(y.road_type_fid)),1)
+      tpi,
+    </if>
+    <!--<if test='timeprecision != "year" '>
+        <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+            round(speedtoconindex(round(sum(t.total_length)/sum(t.total_time)*3.6,1),avg(y.road_type_fid)),1) tpi,
+        </if>
+    </if>
+    <if test='timeprecision == "year" '>
+        <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+            round(speedtoconindex(avg(t.speed),1),avg(y.road_type_fid)),1) "y",
+        </if>
+    </if>
+    <if test='timeprecision != "year" '>
+        round(sum(t.total_length)/sum(t.total_time)*3.6,1) "y"
+    </if>
+    <if test='timeprecision == "year" '>-->
+    <if test="type != 'road'">
+      round(sum(t.total_length)/sum(t.total_time)*3.6,1) "y"
+    </if>
+    <if test="type == 'road'">
+      round(avg(t.speed),1) "y"
+    </if>
+    from
+    <if test="type == 'city' or type=='district'">
+      t_tpi_district_speed t
+    </if>
+    <if test="type=='block'">
+      t_tpi_block_status t
+    </if>
+    <if test="type=='subsect'">
+      t_tpi_subsect_status t
+    </if>
+    <if test="type=='poi'">
+      t_tpi_poi_status t
+    </if>
+    <if test="type == 'road'">
+      t_tpi_road_speed t
+    </if>
+    <if test="type=='roadsect'">
+      t_tpi_roadsect_speed t
+    </if>
+    <if test="type == 'highspeed'">
+      t_tpi_gd_roadsect_speed t
+    </if>
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    inner join
+    <if test="type=='city' or type=='district'">
+      t_base_district y on y.fid = t.district_fid
+    </if>
+    <if test="type=='block'">
+      t_base_block y on y.fid = t.block_fid
+    </if>
+    <if test="type=='subsect'">
+      t_base_subsect y on y.fid = t.subsect_fid
+    </if>
+    <if test="type=='poi'">
+      t_base_poi y on y.fid = t.poi_fid
+    </if>
+    <if test="type == 'road'">
+      t_base_road y on y.fid = t.road_fid
+      left join t_base_direction z on y.dir_fid = z.fid
+    </if>
+    <if test="type == 'roadsect'">
+      t_base_roadsect y on y.fid = t.roadsect_fid
+    </if>
+    <if test="type == 'highspeed'">
+      t_base_gd_roadsect y on y.fid = t.roadsect_fid
+    </if>
+    where 1=1
+    <if test="type == 'city' or type=='district'">
+      <if test="road_type_fid == null or road_type_fid == ''">
+        and t.road_type_fid in
+        <foreach collection="calender_road_type_fid" item="item" separator="," open="(" close=")">
+          #{item}
+        </foreach>
+      </if>
+      and t.district_fid
+      <include refid="sql_permIds"/>
+    </if>
+
+    <if test="road_type_fid != null and road_type_fid != ''">
+      and t.road_type_fid = #{road_type_fid}
+    </if>
+
+    <if test="type=='block'">
+      and t.block_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='subsect'">
+      and t.subsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='poi'">
+      and t.poi_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type == 'road'">
+      and t.road_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='roadsect'">
+      and t.roadsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type == 'highspeed'">
+      and t.roadsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+
+  <!-- getSpeedQueryData接口调整 -->
+  <select id="getSpeedQueryDataNew" parameterType="map" resultType="map">
+    select
+    <include refid="sql_methods"/>
+    <include refid="sql_x"/>
+    <!--<if test='timeprecision != "year" '>
+        <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+            round(speedtoconindex(round(sum(t.total_length)/sum(t.total_time)*3.6,1),avg(y.road_type_fid)),1) tpi,
+        </if>
+    </if>
+    <if test='timeprecision == "year" '>
+        <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+            round(speedtoconindex(avg(t.speed),1),avg(y.road_type_fid)),1) "y",
+        </if>
+    </if>
+    <if test='timeprecision != "year" '>
+        round(sum(t.total_length)/sum(t.total_time)*3.6,1) "y"
+    </if>
+    <if test='timeprecision == "year" '>-->
+    <if test="type == 'road' or type == 'roadsect' or type == 'highspeed'">
+      count(*) as "tpiCount",
+      sum(t.total_length) * 3.6 as "tpiLength",
+      sum(t.total_time) as "tpiTime",
+      sum(y.road_type_fid) as "tpiType",
+    </if>
+    <if test="type != 'road'">
+      sum(t.total_length) * 3.6 as "dividend",
+      sum(t.total_time) as "divisor"
+      <!--round(sum(t.total_length)/sum(t.total_time)*3.6,1) "y"-->
+    </if>
+    <if test="type == 'road'">
+      count(*) as "divisor",
+      sum(t.speed) as "dividend"
+      <!--round(avg(t.speed),1) "y"-->
+    </if>
+    from
+    <if test="type == 'city' or type=='district'">
+      t_tpi_district_speed t
+    </if>
+    <if test="type=='block'">
+      t_tpi_block_status t
+    </if>
+    <if test="type=='subsect'">
+      t_tpi_subsect_status t
+    </if>
+    <if test="type=='poi'">
+      t_tpi_poi_status t
+    </if>
+    <if test="type == 'road'">
+      t_tpi_road_speed t
+    </if>
+    <if test="type=='roadsect'">
+      t_tpi_roadsect_speed t
+    </if>
+    <if test="type == 'highspeed'">
+      t_tpi_gd_roadsect_speed t
+    </if>
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    inner join
+    <if test="type=='city' or type=='district'">
+      t_base_district y on y.fid = t.district_fid
+    </if>
+    <if test="type=='block'">
+      t_base_block y on y.fid = t.block_fid
+    </if>
+    <if test="type=='subsect'">
+      t_base_subsect y on y.fid = t.subsect_fid
+    </if>
+    <if test="type=='poi'">
+      t_base_poi y on y.fid = t.poi_fid
+    </if>
+    <if test="type == 'road'">
+      t_base_road y on y.fid = t.road_fid
+      left join t_base_direction z on y.dir_fid = z.fid
+    </if>
+    <if test="type == 'roadsect'">
+      t_base_roadsect y on y.fid = t.roadsect_fid
+    </if>
+    <if test="type == 'highspeed'">
+      t_base_gd_roadsect y on y.fid = t.roadsect_fid
+    </if>
+    where 1=1
+    <if test="type == 'city' or type=='district'">
+      <if test="road_type_fid == null or road_type_fid == ''">
+        and t.road_type_fid in
+        <foreach collection="calender_road_type_fid" item="item" separator="," open="(" close=")">
+          #{item}
+        </foreach>
+      </if>
+      and t.district_fid
+      <include refid="sql_permIds"/>
+    </if>
+
+    <if test="road_type_fid != null and road_type_fid != ''">
+      and t.road_type_fid = #{road_type_fid}
+    </if>
+
+    <if test="type=='block'">
+      and t.block_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='subsect'">
+      and t.subsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='poi'">
+      and t.poi_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type == 'road'">
+      and t.road_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type=='roadsect'">
+      and t.roadsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <if test="type == 'highspeed'">
+      and t.roadsect_fid
+      <include refid="sql_permIds"/>
+    </if>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+
+  <!--
+      <select id="getBuslaneSpeed" resultType="map" parameterType="map">
+          select a.roadno,
+                 b.fname roadname,
+                 c.fname dir,
+                 b.length roadlength,
+                 a.speed
+            from (select buslane_fid roadno,
+                         round(sum(total_length) / sum(total_time) * 3.6, 2) speed
+                    from t_bus_road_buslane_speed t left join t_base_date_list t1 on t.fdate = t1.fdate
+                   where 1 = 1
+                   <include refid="sql_condition"/>
+                   group by buslane_fid) a
+            left join t_base_buslane b on a.roadno = b.fid
+            left join t_base_direction c on b.dir_fid = c.fid
+            order by speed
+      </select> -->
+  <sql id="sql_buslanfid_buslane_check">
+    <if test="methods == 1">
+      t.buslane_fid,
+      y.fname||'('||c.fname||')' ,
+    </if>
+  </sql>
+  <sql id="sql_grouporderby_buslane_check">
+    <if test='timeprecision == "five_min" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/1+1)
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/1+1)
+    </if>
+    <if test='timeprecision == "fifteen_min" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/3+1)
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/3+1)
+    </if>
+    <if test='timeprecision == "hour" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/12+1)
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      floor((t.period-1)/12+1)
+    </if>
+    <if test='timeprecision == "day" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      t.fdate
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      t.fdate
+    </if>
+    <if test='timeprecision == "week" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      t1.week_no
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      t1.week_no
+    </if>
+    <if test='timeprecision == "month" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      substr(t.fdate,5,2)
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      substr(t.fdate,5,2)
+    </if>
+    <if test='timeprecision == "year" '>
+      group by
+      <include refid="sql_buslanfid_buslane_check"/>
+      substr(t.fdate,1,4)
+      order by
+      <include refid="sql_buslanfid_buslane_check"/>
+      substr(t.fdate,1,4)
+    </if>
+  </sql>
+  <select id="getBuslaneSpeed" parameterType="map" resultType="map">
+    select
+    <include refid="sql_x"/>
+    <if test="methods == 1">
+      t.buslane_fid as fid,
+      y.fname||'('||c.fname||')' as fname,
+    </if>
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "y"
+    from t_bus_road_buslane_speed t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_base_buslane y on t.buslane_fid = y.fid
+    left join t_base_direction c on y.dir_fid = c.fid
+    where 1 = 1
+    and t.buslane_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby_buslane_check"/>
+  </select>
+  <select id="getBuslaneSpeedRate" resultType="map" parameterType="map">
+    select
+    <include refid="sql_x"/>
+    <if test="methods == 1">
+      t.buslane_fid as fid,
+      y.fname||'('||c.fname||')' as fname,
+    </if>
+    round(round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) /
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1),
+    2) as "y"
+    from t_tpi_road_buslane_speed t
+    left join t_bus_road_buslane_speed a on t.fdate = a.fdate
+    and t.period = a.period
+    and t.buslane_fid = a.buslane_fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_base_buslane y on t.buslane_fid = y.fid
+    left join t_base_direction c on y.dir_fid = c.fid
+    where 1 = 1
+    and t.buslane_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby_buslane_check"/>
+  </select>
+  <select id="getBuslaneRealTimeStatus" resultType="map" parameterType="map">
+    select
+    <if test="methods == 1">
+      t.buslane_fid as fid,
+      y.fname||'('||c.fname||')' as fname,
+    </if>
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "carspeed",
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) as "busspeed",
+    round(round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) /round(sum(a.total_length) /
+    sum(a.total_time) * 3.6, 1),2) as "rate",
+    case
+    when round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)&lt;16 then '拥堵'
+    when round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)&lt;19 then '较拥堵'
+    when round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)&lt;22 then '缓行'
+    when round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)&lt;25 then '基本畅通'
+    when round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)&gt;=25 then '畅通'
+    end "status"
+    from t_tpi_road_buslane_speed t
+    left join t_bus_road_buslane_speed a on t.fdate = a.fdate
+    and t.period = a.period
+    and t.buslane_fid = a.buslane_fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_base_buslane y on t.buslane_fid = y.fid
+    left join t_base_direction c on y.dir_fid = c.fid
+    where 1 = 1
+    <if test="id != null and id != ''">
+      and t.buslane_fid
+      <include refid="sql_permIds"/>
+    </if>
+    and t.fdate = #{time}
+    and floor((t.period - 1) / 3 + 1) = #{period15}
+    group by t.buslane_fid, y.fname||'('||c.fname||')',floor((t.period - 1) / 3 + 1)
+    order by round(sum(a.total_length) / sum(a.total_time) * 3.6, 1)
+
+  </select>
+
+  <sql id="sql_fid">
+    <if test="type == 'district' or type == 'city'">
+      t.district_fid
+    </if>
+    <if test="type == 'subsect'">
+      t.subsect_fid
+    </if>
+    <if test="type == 'block'">
+      t.block_fid
+    </if>
+    <if test="type == 'road'">
+      t.road_fid
+    </if>
+  </sql>
+  <select id="getAreaSpeed" resultType="map" parameterType="map">
+    select
+    <include refid="sql_x"/>
+    <include refid="sql_methods"/>
+    round(sum(t.total_length) / sum(t.total_time) * 3.6, 1) as "y"
+    from
+    <if test="type == 'district' or type == 'city'">
+      <if test="range == 'all'">
+        t_bus_district_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_district_buslane_speed
+      </if>
+    </if>
+    <if test="type == 'subsect'">
+      <if test="range == 'all'">
+        t_bus_subsect_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_subsect_buslane_speed
+      </if>
+    </if>
+    <if test="type == 'block'">
+      <if test="range == 'all'">
+        t_bus_block_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_block_buslane_speed
+      </if>
+    </if>
+    t
+    left join
+    <if test="type == 'district'">
+      t_base_district
+    </if>
+    <if test="type == 'subsect'">
+      t_base_subsect
+    </if>
+    <if test="type == 'block'">
+      t_base_block
+    </if>
+    y on
+    <include refid="sql_fid"/>
+    = y.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    and
+    <include refid="sql_fid"/>
+    <include refid="sql_permIds"/>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+  <select id="getAreaSpeedRate" parameterType="map" resultType="map">
+    select
+    <include refid="sql_x"/>
+    <include refid="sql_methods"/>
+    round(
+    round(sum(a.total_length) / sum(a.total_time) * 3.6, 1) /round(sum(t.total_length) /
+    sum(t.total_time) * 3.6, 1)
+    ,
+    2) as "y"
+    from
+    <if test="type == 'district'">
+      <if test="range == 'all'">
+        t_bus_district_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_district_buslane_speed
+      </if>
+    </if>
+    <if test="type == 'subsect'">
+      <if test="range == 'all'">
+        t_bus_subsect_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_subsect_buslane_speed
+      </if>
+    </if>
+    <if test="type == 'block'">
+      <if test="range == 'all'">
+        t_bus_block_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_bus_block_buslane_speed
+      </if>
+    </if>
+    t
+    left join
+    <if test="type == 'district'">
+      t_base_district
+    </if>
+    <if test="type == 'subsect'">
+      t_base_subsect
+    </if>
+    <if test="type == 'block'">
+      t_base_block
+    </if>
+    y on
+    <include refid="sql_fid"/>
+    = y.fid
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join
+    <if test="type == 'district'">
+      <if test="range == 'all'">
+        t_tpi_district_speed
+      </if>
+      <if test="range == 'buslane'">
+        t_tpi_district_buslane_speed
+      </if>
+      a on t.district_fid = a.district_fid
+    </if>
+    <if test="type == 'subsect'">
+      <if test="range == 'all'">
+        t_tpi_subsect_status
+      </if>
+      <if test="range == 'buslane'">
+        t_tpi_subsect_buslane_speed
+      </if>
+      a on t.subsect_fid = a.subsect_fid
+    </if>
+    <if test="type == 'block'">
+      <if test="range == 'all'">
+        t_tpi_block_status
+      </if>
+      <if test="range == 'buslane'">
+        t_tpi_block_buslane_speed
+      </if>
+      a on t.block_fid = a.block_fid
+    </if>
+    and t.fdate = a.fdate and t.period = a.period
+    where 1 = 1
+    and
+    <include refid="sql_fid"/>
+    <include refid="sql_permIds"/>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+
+  <sql id="sql_x_jamlengthratio">
+    <if test='timeprecision == "five_min" '>
+      floor((t.period-1)/1+1)
+    </if>
+    <if test='timeprecision == "fifteen_min" '>
+      floor((t.period-1)/3+1)
+    </if>
+    <if test='timeprecision == "hour" '>
+      floor((t.period-1)/12+1)
+    </if>
+    <if test='timeprecision == "day" '>
+      t.fdate
+    </if>
+    <if test='timeprecision == "week" '>
+      t1.week_no
+    </if>
+    <if test='timeprecision == "month" '>
+      substr(t.fdate,5,2)
+    </if>
+    <if test='timeprecision == "year" '>
+      substr(t.fdate,1,4)
+    </if>
+  </sql>
+  <select id="getDistrictJamLengthRatio" resultType="map" parameterType="map">
+    select a.period "x",
+    <if test="methods == 1">
+      a.district_fid as fid,a.fname,
+    </if>
+    round(sum((a.jam_length / a.total_length) * (b.vkt / b.all_vkt)),3) as "y"
+    from (select
+    <include refid="sql_x_jamlengthratio"/>
+    period, t.district_fid,y.fname,
+    t.road_type_fid,
+    x.total_length,
+    sum(t.jam_length) jam_length
+    from t_tpi_district_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.total_length) total_length
+    from t_tpi_district_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.district_fid
+    <include refid="sql_permIds"/>
+    <if test="road_type_fid == null or road_type_fid == ''">
+      and t.road_type_fid > 1
+    </if>
+    <if test="road_type_fid != null  and road_type_fid  != ''">
+      and t.road_type_fid = #{road_type_fid}
+    </if>
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_district y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    and t.district_fid = y.fid
+    <include refid="sql_condition"/>
+    and t.district_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    and x.total_length > 0
+    group by<include refid="sql_x_jamlengthratio"/>,
+    t.district_fid,
+    y.fname,
+    t.road_type_fid,
+    x.total_length) a,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    t.district_fid,
+    y.fname,
+    t.road_type_fid,
+    x.all_vkt,
+    sum(t.vkt) as vkt
+    from t_tpi_district_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.vkt) as all_vkt
+    from t_tpi_district_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.district_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_district y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    <include refid="sql_condition"/>
+    and t.district_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>,t.district_fid,y.fname, t.road_type_fid,
+    x.all_vkt) b
+    where a.period = b.period
+    and a.road_type_fid = b.road_type_fid
+    and a.fname = b.fname
+    and a.district_fid = b.district_fid
+    group by a.period
+    <if test="methods == 1">
+      ,a.district_fid,a.fname
+      order by a.district_fid
+    </if>
+    <if test="methods == 2">
+      order by a.period
+    </if>
+  </select>
+
+  <select id="getDistrictJamLengthRatio2" parameterType="map" resultType="map">
+    select
+    <include refid="sql_time"></include>,
+    <if test="methods == 1">
+      t.fid ,b.fname,
+    </if>
+    round(sum(jam_length/total_length*vkt)/ sum(vkt), 3) as y
+    from (
+    select <include refid="sql_time"></include>, fid,type,sum( t.jam_length ) jam_length,sum( t.total_length ) total_length,sum( vkt ) AS vkt
+    from (
+    select
+      <if test="timePrecisionValue gt 13">
+          floor(fdate/10000) as year,
+          <if test='timePrecisionValue lt 8641'>
+              mod(floor(fdate/100),100) as month ,
+          </if>
+          <if test='timePrecisionValue lt 289'>
+              fdate,
+          </if>
+      </if>
+      <if test='timePrecisionValue lt 13'>
+          floor(( period - 1 ) / #{timePrecisionValue}+1 ) period,
+      </if>
+    district_fid fid,ROAD_TYPE_FID as type, JAM_LENGTH,vkt,TOTAL_LENGTH from t_tpi_district_jam_ratio
+    where 1 = 1
+    <if test='nowdate !=null and nowdate !="" '>
+      and t.fdate = #{nowdate}
+    </if>
+    <if test='nowdate == null or nowdate == "" '>
+      and fdate between #{startdate} and #{enddate}
+    </if>
+    <if test='dateproperty lt 2'>
+      and fdate in (select fdate from t_base_date_list where fdate between #{startdate} and #{enddate} and IS_WORKDAY = #{dateproperty})
+    </if>
+    <include refid="sql_period"></include>
+    AND district_fid IN
+    <foreach collection="permIds" item="item" separator=","  open="(" close=")">
+      #{item}
+    </foreach>
+    AND road_type_fid > 1
+    ) t
+    group by <include refid="sql_time"></include>,fid, type
+    ) t
+    <if test="methods == 1">
+      left join t_base_district b on t.fid = b.fid
+      group by <include refid="sql_time"></include> ,t.fid, b.fname
+      order by t.fid, <include refid="sql_time"></include> ,b.fname
+    </if>
+    <if test="methods == 2">
+      group by <include refid="sql_time"></include>
+      order by <include refid="sql_time"></include> , y
+    </if>
+
+  </select>
+
+  <select id="getBlockJamLengthRatio" parameterType="map" resultType="map">
+    select a.period "x",
+    <if test="methods == 1">
+      a.block_fid as fid,a.fname,
+    </if>
+    round(sum((a.jam_length / a.total_length) * (b.vkt / b.all_vkt)),3) as "y"
+    from (select
+    <include refid="sql_x_jamlengthratio"/>
+    period, t.block_fid,y.fname,
+    t.road_type_fid,
+    x.total_length,
+    sum(t.jam_length) jam_length
+    from t_tpi_block_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.total_length) total_length
+    from t_tpi_block_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.block_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_block y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    and t.block_fid = y.fid
+    <include refid="sql_condition"/>
+    and t.block_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    and x.total_length > 0
+    group by<include refid="sql_x_jamlengthratio"/>,
+    t.block_fid,
+    y.fname,
+    t.road_type_fid,
+    x.total_length) a,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    t.block_fid,
+    y.fname,
+    t.road_type_fid,
+    x.all_vkt,
+    sum(t.vkt) as vkt
+    from t_tpi_block_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.vkt) as all_vkt
+    from t_tpi_block_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.block_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_block y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    <include refid="sql_condition"/>
+    and t.block_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>,t.block_fid,y.fname, t.road_type_fid, x.all_vkt)
+    b
+    where a.period = b.period
+    and a.road_type_fid = b.road_type_fid
+    and a.fname = b.fname
+    and a.block_fid = b.block_fid
+    group by a.period
+    <if test="methods == 1">
+      ,a.block_fid,a.fname
+      order by a.block_fid
+    </if>
+    <if test="methods == 2">
+      order by a.period
+    </if>
+  </select>
+
+  <select id="getBlockJamLengthRatio2" parameterType="map" resultType="map">
+    select
+    <include refid="sql_time"></include>,
+    <if test="methods == 1">
+        t.fid ,b.fname,
+    </if>
+    round(sum(jam_length/total_length*vkt)/ sum(vkt), 3) as y
+    from (
+        select <include refid="sql_time"></include>, fid,type,sum( t.jam_length ) jam_length,sum( t.total_length ) total_length,sum( vkt ) AS vkt
+        from (
+            select
+                <if test="timePrecisionValue gt 13">
+                    floor(fdate/10000) as year,
+                    <if test='timePrecisionValue lt 8641'>
+                        mod(floor(fdate/100),100) as month ,
+                    </if>
+                    <if test='timePrecisionValue lt 289'>
+                        fdate,
+                    </if>
+                </if>
+                <if test='timePrecisionValue lt 13'>
+                  floor(( period - 1 ) / #{timePrecisionValue}+1 ) period,
+                </if>
+                block_fid fid,ROAD_TYPE_FID as type, JAM_LENGTH,vkt,TOTAL_LENGTH from t_tpi_block_jam_ratio
+            where 1 = 1
+            <if test='nowdate !=null and nowdate !="" '>
+                and t.fdate = #{nowdate}
+            </if>
+            <if test='nowdate == null or nowdate == "" '>
+                and fdate between #{startdate} and #{enddate}
+            </if>
+            <if test='dateproperty lt 2'>
+                and fdate in (select fdate from t_base_date_list where fdate between #{startdate} and #{enddate} and IS_WORKDAY = #{dateproperty})
+            </if>
+            <include refid="sql_period"></include>
+            AND block_fid IN
+            <foreach collection="permIds" item="item" separator=","  open="(" close=")">
+                #{item}
+            </foreach>
+            AND road_type_fid > 1
+        ) t
+        group by <include refid="sql_time"></include>,fid, type
+    ) t
+    <if test="methods == 1">
+        left join t_base_block b on t.fid = b.fid
+        group by <include refid="sql_time"></include> ,t.fid, b.fname
+        order by t.fid, <include refid="sql_time"></include> ,b.fname
+    </if>
+    <if test="methods == 2">
+        group by <include refid="sql_time"></include>
+        order by <include refid="sql_time"></include> , y
+    </if>
+
+  </select>
+
+  <select id="getSubsectJamLengthRatio" resultType="map" parameterType="map">
+    select a.period "x",
+    <if test="methods == 1">
+      a.subsect_fid as fid,a.fname,
+    </if>
+    round(sum((a.jam_length / a.total_length) * (b.vkt / b.all_vkt)),3) as "y"
+    from (select
+    <include refid="sql_x_jamlengthratio"/>
+    period, t.subsect_fid,y.fname,
+    t.road_type_fid,
+    x.total_length,
+    sum(t.jam_length) jam_length
+    from t_tpi_subsect_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.total_length) total_length
+    from t_tpi_subsect_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.subsect_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_subsect y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    and t.subsect_fid = y.fid
+    <include refid="sql_condition"/>
+    and t.subsect_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    and x.total_length > 0
+    group by<include refid="sql_x_jamlengthratio"/>,
+    t.subsect_fid,
+    y.fname,
+    t.road_type_fid,
+    x.total_length) a,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    t.subsect_fid,
+    y.fname,
+    t.road_type_fid,
+    x.all_vkt,
+    sum(t.vkt) as vkt
+    from t_tpi_subsect_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.vkt) as all_vkt
+    from t_tpi_subsect_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.subsect_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_subsect y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    <include refid="sql_condition"/>
+    and t.subsect_fid
+    <include refid="sql_permIds"/>
+    and t.road_type_fid > 1
+    group by<include refid="sql_x_jamlengthratio"/>,t.subsect_fid,y.fname, t.road_type_fid,
+    x.all_vkt) b
+    where a.period = b.period
+    and a.road_type_fid = b.road_type_fid
+    and a.fname = b.fname
+    and a.subsect_fid = b.subsect_fid
+    group by a.period
+    <if test="methods == 1">
+      ,a.subsect_fid,a.fname
+      order by a.subsect_fid
+    </if>
+    <if test="methods == 2">
+      order by a.period
+    </if>
+  </select>
+
+  <select id="getSubsectJamLengthRatio2" parameterType="map" resultType="map">
+    select
+    <include refid="sql_time"></include>,
+    <if test="methods == 1">
+      t.fid ,b.fname,
+    </if>
+    round(sum(jam_length/total_length*vkt)/ sum(vkt), 3) as y
+    from (
+    select <include refid="sql_time"></include>, fid,type,sum( t.jam_length ) jam_length,sum( t.total_length ) total_length,sum( vkt ) AS vkt
+    from (
+    select
+      <if test="timePrecisionValue gt 13">
+          floor(fdate/10000) as year,
+          <if test='timePrecisionValue lt 8641'>
+              mod(floor(fdate/100),100) as month ,
+          </if>
+          <if test='timePrecisionValue lt 289'>
+              fdate,
+          </if>
+      </if>
+      <if test='timePrecisionValue lt 13'>
+          floor(( period - 1 ) / #{timePrecisionValue}+1 ) period,
+      </if>
+    subsect_fid fid,ROAD_TYPE_FID as type, JAM_LENGTH,vkt,TOTAL_LENGTH from t_tpi_subsect_jam_ratio
+    where 1 = 1
+    <if test='nowdate !=null and nowdate !="" '>
+      and t.fdate = #{nowdate}
+    </if>
+    <if test='nowdate == null or nowdate == "" '>
+      and fdate between #{startdate} and #{enddate}
+    </if>
+    <if test='dateproperty lt 2'>
+      and fdate in (select fdate from t_base_date_list where fdate between #{startdate} and #{enddate} and IS_WORKDAY = #{dateproperty})
+    </if>
+    <include refid="sql_period"></include>
+    AND subsect_fid IN
+    <foreach collection="permIds" item="item" separator=","  open="(" close=")">
+      #{item}
+    </foreach>
+    AND road_type_fid > 1
+    ) t
+    group by <include refid="sql_time"></include>,fid, type
+    ) t
+    <if test="methods == 1">
+      left join t_base_subsect b on t.fid = b.fid
+      group by <include refid="sql_time"></include> ,t.fid, b.fname
+      order by t.fid, <include refid="sql_time"></include> ,b.fname
+    </if>
+    <if test="methods == 2">
+      group by <include refid="sql_time"></include>
+      order by <include refid="sql_time"></include> , y
+    </if>
+
+  </select>
+
+  <select id="getRoadJamLengthRatio" parameterType="map" resultType="map">
+    select a.period "x",
+    <if test="methods == 1">
+      a.road_fid as fid,a.fname,
+    </if>
+    round(sum((a.jam_length / a.total_length) * (b.vkt / b.all_vkt)),3) as "y"
+    from (select
+    <include refid="sql_x_jamlengthratio"/>
+    period, t.road_fid,y.fname,
+    x.total_length,
+    sum(t.jam_length) jam_length
+    from t_tpi_road_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.total_length) total_length
+    from t_tpi_road_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.road_fid
+    <include refid="sql_permIds"/>
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_road y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    and t.road_fid = y.fid
+    <include refid="sql_condition"/>
+    and t.road_fid
+    <include refid="sql_permIds"/>
+    and x.total_length > 0
+    group by<include refid="sql_x_jamlengthratio"/>,
+    t.road_fid,
+    y.fname,
+    x.total_length) a,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    t.road_fid,
+    y.fname,
+    x.all_vkt,
+    sum(t.vkt) as vkt
+    from t_tpi_road_jam_ratio t,
+    (select
+    <include refid="sql_x_jamlengthratio"/>
+    period,
+    sum(t.vkt) as all_vkt
+    from t_tpi_road_jam_ratio t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.road_fid
+    <include refid="sql_permIds"/>
+    group by<include refid="sql_x_jamlengthratio"/>) x,
+    t_base_date_list t1,
+    t_base_road y
+    where
+    <include refid="sql_x_jamlengthratio"/>
+    = x.period
+    and t1.fdate = t.fdate
+    and t.road_fid = y.fid
+    <include refid="sql_condition"/>
+    and t.road_fid
+    <include refid="sql_permIds"/>
+    group by<include refid="sql_x_jamlengthratio"/>,t.road_fid,y.fname, x.all_vkt) b
+    where a.period = b.period
+    and a.fname = b.fname
+    and a.road_fid = b.road_fid
+    group by a.period
+    <if test="methods == 1">
+      ,a.road_fid,a.fname
+      order by a.road_fid
+    </if>
+    <if test="methods == 2">
+      order by a.period
+    </if>
+  </select>
+
+  <select id="getRoadJamLengthRatio2" parameterType="map" resultType="map">
+    select
+    <include refid="sql_time"></include>,
+    <if test="methods == 1">
+      t.fid ,b.fname,
+    </if>
+    round(sum(jam_length/total_length*vkt)/ sum(vkt), 3) as y
+    from (
+    select <include refid="sql_time"></include>, fid,sum( t.jam_length ) jam_length,sum( t.total_length ) total_length,sum( vkt ) AS vkt
+    from (
+    select
+      <if test="timePrecisionValue gt 13">
+          floor(fdate/10000) as year,
+          <if test='timePrecisionValue lt 8641'>
+              mod(floor(fdate/100),100) as month ,
+          </if>
+          <if test='timePrecisionValue lt 289'>
+              fdate,
+          </if>
+      </if>
+      <if test='timePrecisionValue lt 13'>
+          floor(( period - 1 ) / #{timePrecisionValue}+1 ) period,
+      </if>
+    road_fid fid, JAM_LENGTH,vkt,TOTAL_LENGTH from t_tpi_road_jam_ratio
+    where 1 = 1
+    <if test='nowdate !=null and nowdate !="" '>
+      and t.fdate = #{nowdate}
+    </if>
+    <if test='nowdate == null or nowdate == "" '>
+      and fdate between #{startdate} and #{enddate}
+    </if>
+    <if test='dateproperty lt 2'>
+      and fdate in (select fdate from t_base_date_list where fdate between #{startdate} and #{enddate} and IS_WORKDAY = #{dateproperty})
+    </if>
+    <include refid="sql_period"></include>
+    AND road_fid IN
+    <foreach collection="permIds" item="item" separator=","  open="(" close=")">
+      #{item}
+    </foreach>
+    ) t
+    group by <include refid="sql_time"></include>,fid
+    ) t
+    <if test="methods == 1">
+      left join t_base_road b on t.fid = b.fid
+      group by <include refid="sql_time"></include> ,t.fid, b.fname
+      order by t.fid, <include refid="sql_time"></include> ,b.fname
+    </if>
+    <if test="methods == 2">
+      group by <include refid="sql_time"></include>
+      order by <include refid="sql_time"></include> , y
+    </if>
+
+  </select>
+
+  <select id="getJamSpaceTime" resultType="map" parameterType="map">
+    select t."x",
+    <include refid="sql_methods"/>
+    <if
+      test="timeprecision == 'day' or timeprecision == 'week' or timeprecision == 'month' or timeprecision == 'year'">
+      round(sum(jam_index),1) "y"
+    </if>
+    <if
+      test="timeprecision == 'five_min' or timeprecision == 'fifteen_min' or timeprecision == 'half_an_hour' or timeprecision == 'hour'">
+      round(sum(jam_index),1) "y"
+    </if>
+    from (
+    select
+    <include refid="sql_x"/>
+    <include refid="sql_fid"/>,t.fdate,sum(t.jam_length)/12 as jam_index
+    from
+    <if test="type == 'district' or type == 'city'">
+      t_tpi_district_jam_ratio t
+    </if>
+    <if test="type == 'block'">
+      t_tpi_block_jam_ratio t
+    </if>
+    <if test="type == 'subsect'">
+      t_tpi_subsect_jam_ratio t
+    </if>
+    <if test="type == 'road'">
+      t_tpi_road_jam_ratio t
+    </if>
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1=1
+    <include refid="sql_condition"/>
+    and
+    <include refid="sql_fid"/>
+    <include refid="sql_permIds"/>
+    <if test="type == 'district' or type == 'city'">
+      <if test="road_type_fid != null  and road_type_fid != ''">
+        and t.road_type_fid = #{road_type_fid}
+      </if>
+    </if>
+    group by
+    <include refid="sql_fid"/>
+    ,t.fdate,
+    <include refid="sql_x_jamlengthratio"/>
+    ) t
+    left join t_base_date_list t1
+    on t.fdate = t1.fdate
+    left join
+    <if test="type == 'district' or type == 'city'">
+      t_base_district y on y.fid = t.district_fid
+    </if>
+    <if test="type == 'block'">
+      t_base_block y on y.fid = t.block_fid
+    </if>
+    <if test="type == 'subsect'">
+      t_base_subsect y on y.fid = t.subsect_fid
+    </if>
+    <if test="type == 'road'">
+      t_base_road y on y.fid = t.road_fid
+      left join t_base_direction z on y.dir_fid = z.fid
+    </if>
+    group by
+    <include refid="sql_methods_group_order"/>
+    t."x"
+    order by
+    <include refid="sql_methods_group_order"/>
+    t."x"
+  </select>
+
+  <sql id="sql_x_avgjamlength">
+    <if test="timeprecision == 'half_an_hour'">
+      floor((t.period_30-1)/1+1) as "x",
+    </if>
+    <if test="timeprecision == 'hour'">
+      floor((t.period_30-1)/2+1) as "x",
+    </if>
+    <if test='timeprecision == "day" '>
+      t.fdate as "x",
+    </if>
+    <if test='timeprecision == "week" '>
+      t1.week_no as "x",
+    </if>
+    <if test='timeprecision == "month" '>
+      substr(t.fdate,5,2) as "x",
+    </if>
+    <if test='timeprecision == "year" '>
+      substr(t.fdate,1,4) as "x",
+    </if>
+  </sql>
+  <sql id="sql_grouporder_avgjamlength">
+    <if test='timeprecision == "half_an_hour" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period_30-1)/1+1) order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period_30-1)/1+1)
+    </if>
+    <if test='timeprecision == "hour" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period_30-1)/2+1) order by
+      <include refid="sql_methods_group_order"/>
+      floor((t.period_30-1)/2+1)
+    </if>
+    <if test='timeprecision == "day" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      t.fdate order by
+      <include refid="sql_methods_group_order"/>
+      t.fdate
+    </if>
+    <if test='timeprecision == "week" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      t1.week_no order by
+      <include refid="sql_methods_group_order"/>
+      t1.week_no
+    </if>
+    <if test='timeprecision == "month" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,5,2)
+      order by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,5,2)
+    </if>
+    <if test='timeprecision == "year" '>
+      group by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,1,4)
+      order by
+      <include refid="sql_methods_group_order"/>
+      substr(t.fdate,1,4)
+    </if>
+  </sql>
+  <sql id="sql_condition_avgjamlength">
+    <if test='startdate !=null and startdate !="" '>
+      <![CDATA[and t.fdate >= #{startdate} ]]>
+    </if>
+    <if test='enddate !=null and enddate !="" '>
+      <![CDATA[and t.fdate <= #{enddate} ]]>
+    </if>
+    <if test="timeproperty == 'all_peak'  ">
+      <![CDATA[and ((t.period_30 >= 15 and t.period_30 <=18) or (t.period_30 >= 36 and t.period_30 <=39)) ]]>
+    </if>
+    <if test='timeproperty == "morning_peak"  '>
+      <![CDATA[and t.period_30 >= 15 and t.period_30 <=18 ]]>
+    </if>
+    <if test='timeproperty == "evening_peak" '>
+      <![CDATA[and t.period_30 >= 36 and t.period_30 <=39 ]]>
+    </if>
+    <if test='timeproperty == "not_peak"'>
+      <![CDATA[and (t.period_30 < 15 or (t.period_30 >18 and t.period_30 < 36) or t.period_30 >39) ]]>
+    </if>
+    <if test="timeproperty=='user_defined'">
+      <if test='startperiod != 0'>
+        <![CDATA[and t.period_30 >= floor(#{startperiod}/6)]]>
+      </if>
+      <if test='endperiod != 0 '>
+        <![CDATA[and t.period_30 <= floor(#{endperiod}/6)]]>
+      </if>
+    </if>
+    <if test='dateproperty == "1"'>
+      <![CDATA[and t1.is_workday = 1  ]]>
+    </if>
+    <if test='dateproperty == "0"'>
+      <![CDATA[and t1.is_workday = 0 ]]>
+    </if>
+  </sql>
+
+  <select id="getAvgJamLength" parameterType="map" resultType="map">
+    select t."x",
+    <include refid="sql_methods"/>
+    round(avg(t.jam_length),1) as "y" from (
+    select
+    <include refid="sql_x_avgjamlength"/>
+    <include refid="sql_fid"/>
+    <if
+      test="timeprecision == 'day' or timeprecision == 'week' or timeprecision == 'month' or timeprecision == 'year'">
+      ,avg(t.jam_length) jam_length
+    </if>
+    <if test="timeprecision == 'half_an_hour' or timeprecision == 'hour'">
+      ,avg(t.jam_length) jam_length
+    </if>
+    from
+    <if test="type == 'district' or type == 'city'">
+      t_tpi_district_jam_length
+    </if>
+    <if test="type == 'block'">
+      t_tpi_block_jam_length
+    </if>
+    <if test="type == 'subsect'">
+      t_tpi_subsect_jam_length
+    </if>
+    <if test="type == 'road'">
+      t_tpi_road_jam_length
+    </if>
+    t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    where 1 = 1
+    <include refid="sql_condition_avgjamlength"/>
+    and
+    <include refid="sql_fid"/>
+    <include refid="sql_permIds"/>
+    <if test="type == 'district' or type == 'city'">
+      <if test="road_type_fid != null  and road_type_fid != ''">
+        and t.road_type_fid = #{road_type_fid}
+      </if>
+    </if>
+    group by
+    <if test='timeprecision == "half_an_hour" '>
+      floor((t.period_30-1)/1+1),
+    </if>
+    <if test='timeprecision == "hour" '>
+      floor((t.period_30-1)/2+1),
+    </if>
+    <if test='timeprecision == "day" '>
+      t.fdate,
+    </if>
+    <if test='timeprecision == "week" '>
+      t1.week_no,
+    </if>
+    <if test='timeprecision == "month" '>
+      substr(t.fdate,5,2),
+    </if>
+    <if test='timeprecision == "year" '>
+      substr(t.fdate,1,4),
+    </if>
+    <include refid="sql_fid"/>
+    ) t left join
+    <if test="type=='district' or type=='city'">
+      t_base_district y on y.fid = t.district_fid
+    </if>
+    <if test="type=='block'">
+      t_base_block y on y.fid = t.block_fid
+    </if>
+    <if test="type=='subsect'">
+      t_base_subsect y on y.fid = t.subsect_fid
+    </if>
+    <if test="type=='road'">
+      t_base_road y on y.fid = t.road_fid
+      left join t_base_direction z on y.dir_fid = z.fid
+    </if>
+    group by
+    <include refid="sql_methods_group_order"/>
+    t."x" order by
+    <include refid="sql_methods_group_order"/>
+    t."x"
+  </select>
+
+  <select id="getCheckLineQueryData" resultType="map" parameterType="map">
+    select
+    <include refid="sql_x"/>
+    <include refid="sql_methods"/>
+    round(sum(t.modified_volume)) "y"
+    from t_tpi_check_line_flow t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_tpi_check_line y on t.check_line_fid = y.fid
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.check_line_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+  <select id="getCrossQueryData" resultType="map" parameterType="map">
+    select
+    <include refid="sql_x"/>
+    <include refid="sql_methods"/>
+    round(sum(t.total_length)/sum(t.total_time)*3.6,1) "y"
+    from t_tpi_cross_speed t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_tpi_cross y on y.fid = t.cross_fid
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.cross_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+  <select id="getRoadSectionFlow" parameterType="map" resultType="map">
+    select
+    <include refid="sql_x"/>
+    <if test="methods == 1">
+      y.fname,
+    </if>
+    round(sum(t.modified_volume)) "y"
+    from t_tpi_section_flow t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+    a.to_node = t.to_node
+    left join t_tpi_detector y on y.fid = a.detector_fid
+    where 1 = 1
+    and a.detector_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_condition"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+  <sql id="sql_flow_hour_coefficient_fid">
+    <if test="methods == 1">
+      a.detector_fid,
+    </if>
+  </sql>
+  <select id="getRoadSectionFlowHourCoefficient" resultType="map" parameterType="map">
+    <if test="methods != 1">
+      select floor((t.period-1)/12+1) "x",round(sum(t.modified_volume)/(select
+      sum(t.modified_volume) volume from t_tpi_section_flow t
+      left join t_base_date_list t1 on t.fdate = t1.fdate
+      left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+      a.to_node = t.to_node
+      where 1 = 1
+      and a.detector_fid
+      <include refid="sql_permIds"/>
+      and t.fdate &gt;= #{startdate} and t.fdate &lt;= #{enddate}
+      <if test="dateproperty == 1">
+        and t1.is_workday = 1
+      </if>
+      ),3) "y" from t_tpi_section_flow t
+      left join t_base_date_list t1 on t.fdate = t1.fdate
+      left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+      a.to_node = t.to_node
+      where 1 = 1
+      and a.detector_fid
+      <include refid="sql_permIds"/>
+      <include refid="sql_condition"/>
+      group by floor((t.period-1)/12+1)
+      order by floor((t.period-1)/12+1)
+    </if>
+    <if test="methods == 1">
+      select a.detector_fid fid,y.fname, floor((t.period-1)/12+1)
+      "x",round(sum(t.modified_volume)/avg(x.num)/avg(volume),3) "y" from t_tpi_section_flow t
+      left join t_base_date_list t1 on t.fdate = t1.fdate
+      left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+      a.to_node = t.to_node
+      left join t_tpi_detector y on a.detector_fid = y.fid
+      left join
+      (select a.detector_fid ,b.num,a.volume/b.num volume from
+      (select a.detector_fid, sum(t.modified_volume) volume from t_tpi_section_flow t
+      left join t_base_date_list t1 on t.fdate = t1.fdate
+      left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+      a.to_node = t.to_node
+      where 1 = 1
+      and a.detector_fid
+      <include refid="sql_permIds"/>
+      and t.fdate &gt;= #{startdate} and t.fdate &lt;= #{enddate}
+      <if test="dateproperty == 1">
+        and t1.is_workday = 1
+      </if>
+      group by a.detector_fid ) a
+      left join
+      (
+      select count(distinct t.fdate) num,a.detector_fid from t_tpi_section_flow t
+      left join t_base_date_list t1 on t.fdate = t1.fdate
+      left join t_tpi_detector_link a on a.link_fid = t.link_fid and a.from_node = t.from_node and
+      a.to_node = t.to_node
+      where 1 = 1
+      and a.detector_fid
+      <include refid="sql_permIds"/>
+      and t.fdate &gt;= #{startdate} and t.fdate &lt;= #{enddate}
+      <if test="dateproperty == 1">
+        and t1.is_workday = 1
+      </if>
+      group by a.detector_fid
+      ) b on a.detector_fid = b.detector_fid) x
+      on y.fid = x.detector_fid
+      where 1 = 1
+      <include refid="sql_condition"/>
+      and a.detector_fid
+      <include refid="sql_permIds"/>
+      group by a.detector_fid,y.fname,floor((t.period-1)/12+1)
+      order by a.detector_fid,y.fname,floor((t.period-1)/12+1)
+    </if>
+  </select>
+  <select id="getIntersectionDelayData" parameterType="map" resultType="map">
+    select
+    <if test="methods == 1">
+      b.fid,a.fname||'('||b.approach_dir||')' fname,
+    </if>
+    <include refid="sql_x"/>round(avg(t.delay_time)) "y" from t_tpi_intersection_delay t
+    left join t_base_date_list t1 on t.fdate = t1.fdate
+    left join t_base_intersection a on a.fid = t.intersection_fid
+    left join t_base_intersection_approach b on a.fid = b.intersection_fid and t.from_approach_fid =
+    b.fid
+    where 1 = 1
+    <include refid="sql_condition"/>
+    and t.intersection_fid
+    <include refid="sql_permIds"/>
+    <include refid="sql_grouporderby"/>
+  </select>
+
+  <select id="getBusTrajectoryData" parameterType="map" resultType="map">
+    select t.vehicle_fid,
+    t.arrival_time,
+    t.trip_direction,
+    trip_fid,
+    t.stop_index,
+    t.stop_name,
+    t.route_fname
+    from t_bus_arrival t
+    where 1 = 1
+    and t.arrival_date = #{arrival_date}
+    and t.trip_direction = #{trip_direction}
+    and t.route_fname = #{route_fname}
+    order by t.vehicle_fid,
+    t.arrival_time,
+    trip_fid,
+    t.stop_index,
+    t.stop_name,
+    t.route_fname
+  </select>
+  <select id="getBusArrivalInterval" parameterType="map" resultType="map">
+    select trip_fid "trip_fid",stop_name "stop_name",count(*) "veh_num" from T_BUS_ARRIVAL_INTERVAL
+    t
+    where t.arrival_date = #{arrival_date} and trip_fid=#{trip_fid} and stop_name=#{stop_name}
+    <if test="start_sec != -1">
+      and t.arrival_interval &gt; #{start_sec}
+    </if>
+    <if test="end_sec != -1">
+      and t.arrival_interval &lt;= #{end_sec}
+    </if>
+    group by trip_fid,stop_name
+  </select>
+  <select id="getBusStopInfo" resultType="map" parameterType="map">
+    select t.stop_name "stop_name", t.stop_index "stop_index"
+    from t_bus_stop t
+    where trim(t.trip_fid) = #{trip_fid}
+    order by t.stop_index
+  </select>
+</mapper>

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IReportDao">
+  <insert id="setSpecialReportInfo" parameterType="map">
+    insert into t_tpi_special_report
+    (
+    id,
+    fname,
+    report_category,
+    <if test="report_type != null and report_type != ''">
+      report_type,
+    </if>
+    department_category,
+    <if test="department_type != null and department_type != ''">
+      department_type,
+    </if>
+    department,
+    upload_person,
+    create_time,
+    is_delete,
+    submit)
+    values (
+    #{id},
+    #{fname},
+    #{report_category},
+    <if test="report_type != null and report_type != ''">
+      #{report_type},
+    </if>
+    #{department_category},
+    <if test="department_type != null and department_type != ''">
+      #{department_type},
+    </if>
+    #{department},
+    #{upload_person},
+    #{create_time},
+    0,
+    #{submit}
+    )
+  </insert>
+
+  <select id="getSpecialReportInfoByPage" parameterType="map" resultType="map">
+    select t2.*from (
+    select t1.*,rownum as "rownum" from (
+    select t.id "id",
+    t.fname "fname",
+    t.report_type "report_type",
+    t.report_category "report_category",
+    t.department_type "department_type",
+    t.department_category "department_category",
+    t.department "department",
+    t.upload_person "upload_person",
+    t.create_time "create_time",
+    t.submit "submit",
+    a.upload_filename "attachment_name",
+    a.ext_name "ext_name"
+    from t_tpi_special_report t
+    left join t_sys_attachment a on t.id = a.id
+    where 1=1
+    and t.is_delete = 0
+    <if test="fname != null and fname != ''">
+      and t.fname like '%'||#{fname}||'%'
+    </if>
+    <if test="report_category != null and report_category != ''">
+      and t.report_category like '%'||#{report_category}||'%'
+    </if>
+    <if test="report_type != null and report_type != ''">
+      and t.report_type = #{report_type}
+    </if>
+    <if test="department_category != null and department_category != ''">
+      and t.department_category like '%'||#{department_category}||'%'
+    </if>
+    <if test="department_type != null and department_type != ''">
+      and t.department_type = #{department_type}
+    </if>
+    <if test="upload_person != null and upload_person != ''">
+      and t.upload_person like '%'||#{upload_person}||'%'
+    </if>
+    order by t.create_time desc) t1
+    where rownum &lt;= (#{pageNum} + 1) * #{pageSize}) t2
+    where t2."rownum" &gt; #{pageNum}*#{pageSize}
+  </select>
+
+  <select id="getSpecialReportInfo" parameterType="map" resultType="map">
+    select t.id "id",
+    t.fname "fname",
+    t.report_type "report_type",
+    t.report_category "report_category",
+    t.department_type "department_type",
+    t.department_category "department_category",
+    t.department "department",
+    t.upload_person "upload_person",
+    t.create_time "create_time",
+    t.submit "submit",
+    a.upload_filename "attachment_name",
+    a.ext_name "ext_name"
+    from t_tpi_special_report t
+    left join t_sys_attachment a on t.id = a.id
+    where 1=1
+    and t.is_delete = 0
+    <if test="fname != null and fname != ''">
+      and t.fname like '%'||#{fname}||'%'
+    </if>
+    <if test="report_category != null and report_category != ''">
+      and t.report_category like '%'||#{report_category}||'%'
+    </if>
+    <if test="report_type != null and report_type != ''">
+      and t.report_type = #{report_type}
+    </if>
+    <if test="department_category != null and department_category != ''">
+      and t.department_category like '%'||#{department_category}||'%'
+    </if>
+    <if test="department_type != null and department_type != ''">
+      and t.department_type = #{department_type}
+    </if>
+    <if test="upload_person != null and upload_person != ''">
+      and t.upload_person like '%'||#{upload_person}||'%'
+    </if>
+    order by t.create_time desc
+  </select>
+  <update id="updateSpecialReportInfo" parameterType="map">
+    update t_tpi_special_report
+    <set>
+      <if test="id != null and id != ''">
+        id = #{id},
+      </if>
+      <if test="fname != null and fname != ''">
+        fname = #{fname},
+      </if>
+      <if test="report_category != null and report_category != ''">
+        report_category = #{report_category},
+      </if>
+      <if test="report_type != null and report_type != ''">
+        report_type = #{report_type},
+      </if>
+      <if test="department_category != null and department_category != ''">
+        department_category = #{department_category},
+      </if>
+      <if test="department_type != null and department_type != ''">
+        department_type = #{department_type},
+      </if>
+      <if test="department != null and department != ''">
+        department = #{department},
+      </if>
+      <if test="update_time != null and update_time != ''">
+        update_time = #{update_time},
+      </if>
+      <if test="upload_person != null and upload_person != ''">
+        upload_person = #{upload_person},
+      </if>
+      <if test="submit != null and submit != ''">
+        submit = #{submit}
+      </if>
+    </set>
+    where id = #{old_id}
+  </update>
+  <update id="deleteSpecialReportInfo" parameterType="map">
+    update t_tpi_special_report
+    set is_delete = 1
+    where id = #{id}
+  </update>
+  <select id="getSubmitReportInfo" parameterType="map" resultType="map">
+    select t.id "id",
+    t.fname "fname",
+    t.create_time "create_time",
+    t.update_time "update_time",
+    a.ext_name "ext_name"
+    from t_tpi_special_report t
+    left join t_sys_attachment a on t.id = a.id
+    where 1 = 1
+    and t.is_delete = 0
+    and t.submit = 1
+    and t.update_time&gt;=#{starttimestamp}
+    and t.update_time&lt;#{endtimestamp}
+    order by t.create_time desc
+  </select>
+
+  <select id="getDistrictIds" resultType="int">
+    select distinct fid as "id" from t_base_district where fid &lt; 100
+  </select>
+
+  <insert id="setMonthReport">
+
+    DECLARE
+    V_LANG CLOB := #{json,jdbcType=CLOB};
+    BEGIN
+    INSERT　INTO　t_tpi_month_report(id,fdate,district_fid,json,create_time,key)　
+    VALUES(#{id},#{fdate},#{districtFid}, V_LANG,sysdate,#{key});
+    END;
+  </insert>
+
+  <select id="getMonthReport" resultType="map">
+    select json from t_tpi_month_report where key = #{key}
+  </select>
+</mapper>

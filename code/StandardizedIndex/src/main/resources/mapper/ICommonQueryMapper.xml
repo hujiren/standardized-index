@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.ICommonQueryDao">
+  <sql id="sql_permIds">
+    in
+    <foreach collection="permIds" item="item" separator=","
+      open="(" close=")">
+      #{item}
+    </foreach>
+  </sql>
+  <select id="getDownloadInfo" parameterType="map" resultType="map">
+    select a.*,rownum from (select t.* from tp_download_info t where time=#{time}
+    <if test="type!=null and type!=''">
+      and type=#{type}
+    </if>
+    <if test="name!=null and type!=''">
+      and name like #{name}||'%'
+    </if>
+    order by t.timestamp desc) a where rownum&lt;=1
+  </select>
+  <insert id="setDownloadInfo" parameterType="map">
+    insert into tp_download_info (
+    id,
+    time,
+    name,
+    timestamp
+    <if test="type!=null and type!=''">
+      ,type
+    </if>
+    ) values(
+    #{id},
+    #{time},
+    #{name},
+    sysdate
+    <if test="type!=null and type!=''">
+      ,#{type}
+    </if>
+    )
+  </insert>
+
+  <select id="getRoadBig" parameterType="map" resultType="map">
+    select a.fid,a.fname,b.fname as dir ,a.fname||'('|| b.fname||')' as fnameanddir
+    from t_base_road a left join t_base_direction b on a.dir_fid = b.fid
+    left join t_base_roadsect c on a.fid = c.road_fid
+    <if test="config_district_fid != null and config_district_fid != ''">
+      where c.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <if test=" fname != null and fname !=''">
+      and a.fname like '%'||#{fname}||'%'
+    </if>
+    group by a.fid,a.fname,b.fname,a.fname||'('|| b.fname||')'
+    <if test=" fname != null and fname !=''">
+      order by
+      (case when instr(a.fname,#{fname})>0 then 1 else 0 end) desc
+    </if>
+  </select>
+  <select id="getRoadBigName" resultType="map" parameterType="map">
+    select distinct t.fname from t_base_road t
+    left join t_base_roadsect y on t.fid = y.road_fid
+    <if test="config_district_fid != null and config_district_fid != ''">
+      where y.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+  <select id="getRoadBigDir" parameterType="map" resultType="map">
+    select a.fid road_fid, a.fname road_name, b.fname dir_name, b.fid dir_fid
+    from t_base_road a,
+    t_base_direction b
+    where a.dir_fid = b.fid
+    and a.fname = #{road_name}
+  </select>
+  <select id="getRoadMid" parameterType="map" resultType="map">
+    select t.fid,t.fname,t.roadsect_from,t.roadsect_to from t_base_roadsect t
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and t.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <if test="road_fid !=null and road_fid != ''">
+      and t.road_fid = #{road_fid}
+    </if>
+    <if test=" fname != null and fname !=''">
+      and (t.fname like '%'||#{fname}||'%' or t.roadsect_from like '%'||#{fname}||'%' or
+      t.roadsect_to like '%'||#{fname}||'%')
+      order by
+      (case when instr(t.fname,#{fname})>0 then 1 else 0 end) desc,
+      (case when instr(t.roadsect_from,#{fname})>0 then 1 else 0 end)desc
+    </if>
+  </select>
+  <select id="getDistrict" resultType="map" parameterType="map">
+    <!-- select fid,fname from t_base_district t
+     where is_show = 1
+     and fid &gt; 100
+     and  fid  in
+     <foreach collection="user_defined_base_district_fid" item="item" separator="," open="(" close=")">
+         #{item}
+     </foreach>
+     union all -->
+    select fid,fname from t_base_district
+    where is_show = 1
+    <!-- and fid &lt; 100
+    and  fid  in
+    <foreach collection="user_defined_base_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+    </foreach>-->
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+  <select id="getDistrictForBus" resultType="map" parameterType="map">
+    select fid,fname from t_base_district t
+    where is_show = 1
+    and fid in (111,222,333)
+    union
+    select fid,fname from t_base_district
+    where is_show = 1
+    <!-- and fid &lt; 100
+    and  fid  in
+    <foreach collection="user_defined_base_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+    </foreach>-->
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+  <select id="getDistrictForCity" resultType="map" parameterType="map">
+    select fid, fname
+    from t_base_district t
+    where is_show = 1
+    and fid in (111, 222, 333)
+  </select>
+  <select id="getBlock" parameterType="map" resultType="map">
+    select fid, fname, district_fid
+    from t_base_block
+    where is_show = 1
+    <if test="fname != null and fname != ''">
+      and fname like '%'||#{fname}||'%'
+    </if>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by fid
+  </select>
+  <select id="getSubsect" resultType="map" parameterType="map">
+    select fid, fname, district_fid
+    from t_base_subsect
+    where is_show = 1
+    <if test="fname != null and fname != ''">
+      and fname like '%'||#{fname}||'%'
+    </if>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by fid
+  </select>
+  <select id="getPoi" parameterType="map" resultType="map">
+    select fid, fname, district_fid,poi_lng lng,poi_lat lat
+    from t_base_poi
+    where
+    1=1
+    and is_show &gt;=1
+    <if test="poi_type !=null and poi_type != ''">
+      and poi_type = #{poi_type}
+    </if>
+    <if test="fname != null and fname != ''">
+      and fname like '%'||#{fname}||'%'
+    </if>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by fid
+  </select>
+  <select id="getPoiCategory" parameterType="map" resultType="map">
+    select distinct poi_category,poi_type from t_base_poi
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by poi_type
+  </select>
+  <select id="getInterestPoi" parameterType="map" resultType="map">
+    select t.fid, t.fname, t.poi_lng lng, t.poi_lat lat
+    from T_BASE_POI t
+    where t.is_show = 1
+  </select>
+  <select id="getDetector" resultType="map" parameterType="map">
+    select distinct b.fname,b.fname||'('||a.detect_dir||')' fname_dir, b.fid from
+    t_tpi_detector_link a left join t_tpi_detector b on a.detector_fid = b.fid
+    where a.detect_dir is not null
+    <if test="is_show != null and is_show != ''">
+      and b.is_show = #{is_show}
+    </if>
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and b.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+  <select id="getBusLane" parameterType="map" resultType="map">
+    select a.fid, a.fname || '(' || b.fname || ')' as fname
+    from t_base_buslane a
+    left join t_base_direction b on a.dir_fid = b.fid
+    order by fid
+  </select>
+  <select id="getGdRoadBig" parameterType="map" resultType="map">
+    select a.fid, a.fname, b.fname as dir, a.fname || '(' || b.fname || ')' as fnameanddir
+    from t_base_gd_road a
+    left join t_base_direction b on a.dir_fid = b.fid
+  </select>
+  <select id="getGdRoadMid" resultType="map" parameterType="map">
+    select t.fid roadsect_fid,t.fname,t.roadsect_from,t.roadsect_to,road_fid from t_base_gd_roadsect
+    t
+
+    <if test="road_fid !=null and road_fid != ''">
+      where 1=1 and t.road_fid = #{road_fid}
+    </if>
+    <if test="fname != null and fname != ''">
+      where 1=1 and (t.fname like '%'||#{fname}||'%' or t.roadsect_from like '%'||#{fname}||'%' or
+      t.roadsect_to like '%'||#{fname}||'%')
+      order by
+      (case when instr(t.fname,#{fname})>0 then 1 else 0 end) desc,
+      (case when instr(t.roadsect_from,#{fname})>0 then 1 else 0 end)desc
+    </if>
+  </select>
+  <select id="getCheckLine" parameterType="map" resultType="map">
+    select t.fid, t.fname || '(' || t.detect_dir || ')' fname
+    from t_tpi_check_line t
+  </select>
+  <select id="getCross" parameterType="map" resultType="map">
+    select t.fid, t.fname || '(' || t.dir_name || ')' fname
+    from t_tpi_cross t
+    order by t.fid
+  </select>
+  <select id="getIntersectionDelay" resultType="map" parameterType="map">
+    select distinct a.fname,a.fid from t_base_intersection a
+    where 1=1
+    <!-- and b.fdate = #{time}
+    and floor((b.period-1)/3+1) = #{period15} -->
+    <!-- and  b.sample>2 and b.TOTAL_LENGTH &lt;50*2.5*b.sample and b.speed>5 and b.speed &lt; 50 and b.delay_time>1  -->
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    <if test="fname !=null and fname != ''">
+      and a.fname like '%'||#{fname}||'%'
+    </if>
+  </select>
+  <select id="getVehicle" resultType="map" parameterType="map">
+    select fid,fname from t_vpm_base_type
+    where 1 = 1 and is_delete = 0
+    <if test="vehicle_type_fid != null ">
+      and fid in
+      <foreach collection="vehicle_type_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+
+  <select id="getBusRouteFname" resultType="map" parameterType="map">
+    <!-- select distinct route_fname from t_bus_arrival where route_fname is not null order by route_fname -->
+    select route_fname from T_BUS_ROUTE_FNAME
+  </select>
+  <select id="getBusRouteDirection" parameterType="map" resultType="map">
+    select distinct trip_direction
+    from t_bus_arrival
+    where route_fname = #{route_fname}
+  </select>
+  <select id="getTrafficEventType" parameterType="map" resultType="map">
+    select fid, fname
+    from t_tpi_event_type
+    order by fid
+  </select>
+
+  <select id="getParkRoadBaseInfo" resultType="map" parameterType="map">
+    select distinct park_zone_id fid,park_zone_name fname from t_tpi_park_road a
+    where 1=1
+    <if test="config_district_fid != null and config_district_fid != ''">
+      and a.district_fid in
+      <foreach collection="config_district_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by park_zone_id
+  </select>
+
+  <select id="getFreightTransportInfo" parameterType="map" resultType="map">
+    select fid, fname, lon, lat
+    from t_base_freight
+    order by fid
+  </select>
+
+  <select id="getBaseDateListInfo" parameterType="map" resultType="map">
+    select fdate as "fdate",
+    day_no as "dayNo",
+    week_no as "weekNo",
+    from_day as "fromDay",
+    to_day as "toDay",
+    is_workday as "isWorkday"
+    from t_base_date_list
+    where fdate = #{time}
+  </select>
+  <select id="getRoadType" resultType="map" parameterType="map">
+    select distinct fid "fid",fname "fname" from t_base_road_type where 1=1
+    <if test="base_road_type_fid != null and base_road_type_fid != ''">
+      and fid in
+      <foreach collection="base_road_type_fid" item="item" separator="," open="(" close=")">
+        #{item}
+      </foreach>
+    </if>
+    order by 1
+  </select>
+</mapper>

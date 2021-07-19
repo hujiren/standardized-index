@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleCityOverviewDao">
+  <select id="getAllAverageSpeed" resultType="Double">
+    -- 全市路网高峰时段平均速度
+    select COALESCE(sum(tds.total_length) / sum(tds.total_time) * 3.6, 0) as speed
+    from T_TPI_DISTRICT_SPEED tds
+    inner join t_base_date_list tbdl on tds.fdate = tbdl.fdate
+    where tds.DISTRICT_FID = 111
+    and tbdl.is_workday = 1
+    and tds.ROAD_TYPE_FID in (2, 3, 4, 5)
+    and tds.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tds.PERIOD BETWEEN 85 and 108 or tds.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getAllAverageTpi" resultType="Double">
+    -- 全市路网高峰时段平均交通指数
+    select COALESCE(avg(tdt.tpi), 0) as tpi
+    from T_TPI_DISTRICT_TPI tdt
+    inner join t_base_date_list tbdl on tdt.fdate = tbdl.fdate
+    where tdt.DISTRICT_FID = 111
+    and tbdl.is_workday = 1
+    and tdt.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tdt.PERIOD BETWEEN 85 and 108 or tdt.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getDistrictTpiRank" resultType="com.sutpc.its.po.CityDistrictTpiRankPo">
+    -- 行政区高峰时段速度、指数
+    select tbd.FID as id,
+    tbd.FNAME as name,
+    COALESCE(tds.speed, 0) as speed,
+    COALESCE(tdt.tpi, 0) as tpi
+    from T_BASE_DISTRICT tbd
+    left join (select DISTRICT_FID,
+    COALESCE(sum(t.total_length) / sum(t.total_time) * 3.6, 0) as speed
+    from T_TPI_DISTRICT_SPEED t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where ROAD_TYPE_FID in (2, 3, 4, 5)
+    and b.is_workday = 1
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+    GROUP BY DISTRICT_FID) tds on tds.DISTRICT_FID = tbd.FID
+    left join (select t.DISTRICT_FID, avg(t.tpi) as tpi
+    from T_TPI_DISTRICT_TPI t
+    inner join t_base_date_list b on t.fdate = b.fdate
+    where b.is_workday = 1
+    and t.FDATE BETWEEN #{startDate} and #{endDate}
+    and (t.PERIOD BETWEEN 85 and 108 or t.PERIOD BETWEEN 211 and 234)
+    GROUP BY DISTRICT_FID) tdt on tdt.DISTRICT_FID = tbd.FID
+    where tbd.FID in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    order by tdt.tpi desc, tbd.ORDER_NO asc
+  </select>
+
+  <select id="getPrimaryForMorning" resultType="Double">
+    -- 主要干道早高峰时段平均速度
+    -- 南山大道、滨河大道、香蜜湖路、南海大道、南坪快速、红岭路、皇岗路、深南大道、沙河西路、新洲路、滨海大道、北环大道
+    select COALESCE(sum(trs.total_length) / sum(trs.total_time) * 3.6, 0) as speed
+    from t_tpi_road_speed trs
+    inner join t_base_date_list tbdl on trs.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and trs.ROAD_FID in (7623,
+    7624,
+    121,
+    122,
+    113,
+    114,
+    1251,
+    1252,
+    1473,
+    1474,
+    1483,
+    1484,
+    151,
+    152,
+    391,
+    392,
+    333,
+    334,
+    343,
+    344,
+    353,
+    354,
+    373,
+    374,
+    141,
+    142,
+    363,
+    364)
+    and trs.FDATE BETWEEN #{startDate} and #{endDate}
+    and (trs.PERIOD BETWEEN 85 and 108)
+  </select>
+
+  <select id="getPrimaryForEvening" resultType="Double">
+    -- 主要干道早高峰时段平均速度
+    -- 南山大道、滨河大道、香蜜湖路、南海大道、南坪快速、红岭路、皇岗路、深南大道、沙河西路、新洲路、滨海大道、北环大道
+    select COALESCE(sum(trs.total_length) / sum(trs.total_time) * 3.6, 0) as speed
+    from t_tpi_road_speed trs
+    inner join t_base_date_list tbdl on trs.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and trs.ROAD_FID in (7623,
+    7624,
+    121,
+    122,
+    113,
+    114,
+    1251,
+    1252,
+    1473,
+    1474,
+    1483,
+    1484,
+    151,
+    152,
+    391,
+    392,
+    333,
+    334,
+    343,
+    344,
+    353,
+    354,
+    373,
+    374,
+    141,
+    142,
+    363,
+    364)
+    and trs.FDATE BETWEEN #{startDate} and #{endDate}
+    and (trs.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getHubForMorning" resultType="Double">
+    -- 枢纽片区早高峰时段平均速度
+    -- 深圳火车站、宝安国际机场、深圳东站、深圳北站、深圳西站
+    select COALESCE(sum(tps.total_length) / sum(tps.total_time) * 3.6, 0) as speed
+    from t_tpi_poi_status tps
+    left join t_base_poi tbp on tps.poi_fid = tbp.fid
+    inner join t_base_date_list tbdl on tps.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tbp.FID IN (33, 77, 90, 122, 138)
+    and tps.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tps.PERIOD BETWEEN 85 and 108)
+  </select>
+
+  <select id="getHubForEvening" resultType="Double">
+    -- 枢纽片区晚高峰时段平均速度
+    -- 深圳火车站、宝安国际机场、深圳东站、深圳北站、深圳西站
+    select COALESCE(sum(tps.total_length) / sum(tps.total_time) * 3.6, 0) as speed
+    from t_tpi_poi_status tps
+    left join t_base_poi tbp on tps.poi_fid = tbp.fid
+    inner join t_base_date_list tbdl on tps.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tbp.FID IN (33, 77, 90, 122, 138)
+    and tps.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tps.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getPortForMorning" resultType="Double">
+    -- 口岸片区早高峰时段平均速度
+    -- 福田口岸、皇岗口岸、罗湖口岸、深圳湾口岸
+    select COALESCE(sum(tps.total_length) / sum(tps.total_time) * 3.6, 0) as speed
+    from t_tpi_poi_status tps
+    left join t_base_poi tbp on tps.poi_fid = tbp.fid
+    inner join t_base_date_list tbdl on tps.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tbp.FID IN (21, 22, 36, 51)
+    and tps.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tps.PERIOD BETWEEN 85 and 108)
+  </select>
+
+  <select id="getPortForEvening" resultType="Double">
+    -- 口岸片区晚高峰时段平均速度
+    -- 福田口岸、皇岗口岸、罗湖口岸、深圳湾口岸
+    select COALESCE(sum(tps.total_length) / sum(tps.total_time) * 3.6, 0) as speed
+    from t_tpi_poi_status tps
+    left join t_base_poi tbp on tps.poi_fid = tbp.fid
+    inner join t_base_date_list tbdl on tps.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tbp.FID IN (21, 22, 36, 51)
+    and tps.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tps.PERIOD BETWEEN 211 and 234)
+  </select>
+
+  <select id="getGatewayForMorning" resultType="Double">
+    -- 主要二线关早高峰进关平均速度
+    -- 布吉关、南头关、梅林关、福龙关、新清平关、沙湾关、新城关
+    select COALESCE(sum(tcs.total_length) / sum(tcs.total_time) * 3.6, 0) as speed
+    from t_tpi_cross_speed tcs
+    inner join t_base_date_list tbdl on tcs.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tcs.CROSS_FID in (90011, 90021, 90051, 90071, 90091, 90111, 90121)
+    and tcs.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tcs.PERIOD BETWEEN 85 and 108)
+  </select>
+
+  <select id="getGatewayForEvening" resultType="Double">
+    -- 主要二线关早高峰进关平均速度
+    -- 布吉关、南头关、梅林关、福龙关、新清平关、沙湾关、新城关
+    select COALESCE(sum(tcs.total_length) / sum(tcs.total_time) * 3.6, 0) as speed
+    from t_tpi_cross_speed tcs
+    inner join t_base_date_list tbdl on tcs.fdate = tbdl.fdate
+    where tbdl.is_workday = 1
+    and tcs.CROSS_FID in (90011, 90021, 90051, 90071, 90091, 90111, 90121)
+    and tcs.FDATE BETWEEN #{startDate} and #{endDate}
+    and (tcs.PERIOD BETWEEN 211 and 234)
+  </select>
+
+</mapper>

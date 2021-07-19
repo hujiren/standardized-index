@@ -1,0 +1,7 @@
+POST {{host}}/dataQuery/getRoadsectQueryData
+Accept: application/json
+Content-Type: application/x-www-form-urlencoded
+
+methods=2&timeprecision=year&index=avg_speed&dateproperty=1&id=39201&startdate=20180101&enddate=20191231&starttime=&endtime=&timeproperty=all_peak
+
+###

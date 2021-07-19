@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IHotSpotFlowDao">
+    <select id="selectHotspotPassFlow" resultType="map">
+    <![CDATA[
+
+
+                            select a.tazid,
+                                   a.timestamp,
+                                   b.tazname,
+                                   a.pfky PF,
+                                   round(a.pfky / b.pf_saturation, 2) pf_saturation,
+                                   case
+                                     when round(a.pfky / b.pf_saturation, 2) <= 0.28 then
+                                      '舒适'
+                                     when round(a.pfky / b.pf_saturation, 2) <= 0.5 then
+                                      '基本舒适'
+                                     when round(a.pfky / b.pf_saturation, 2) <= 0.7 then
+                                      '拘束'
+                                     when round(a.pfky / b.pf_saturation, 2) <= 0.9 then
+                                      '较拥挤'
+                                     when round(a.pfky / b.pf_saturation, 2) > 0.9 then
+                                      '拥挤'
+                                   end service_level
+                              from TBL_TAZ_PF_HIS a
+
+                             inner join tbl_hottaz_pf_saturation b
+
+                                on a.tazid = b.hot_taz
+                                  where a.pfky>0 and a.timestamp= ( select max(timestamp) from TBL_TAZ_PF_HIS )
+
+
+        ]]>
+
+    </select>
+
+    <!-- 一张图 选中的街道片区速度或者指数情况 -->
+    <select id="getHotSpotFlow" parameterType="map" resultType="map">
+        select t.tazid as "id",t.pf as "pf",to_number(to_char(t.timestamp,'yyyymmddhh24miss')) as "timestamp",
+        t.tazname as "name",t.pf_saturation as "saturation",t.service_level as "servicelevel"
+        from TBL_PF_SATURATION t where to_number(to_char(t.timestamp,'yyyymmddhh24miss'))
+        <!-- =#{time} -->
+        =(select max(to_number(to_char(x.timestamp,'yyyymmddhh24miss'))) from TBL_PF_SATURATION x)
+        and to_number(to_char(t.timestamp,'yyyymmddhh24miss'))&gt;=#{time}
+
+    </select>
+    <select id="getHotspotFlowLineData" parameterType="map" resultType="map">
+        select
+            (substr(t.time,9,2)*4+substr(t.time,11,2)/15+1) "period",t.pf "flow",t.pf_saturation "saturation"
+        from (
+            select to_char(t.timestamp,'yyyymmddhh24miss') time,t.pf,b.pf_saturation
+            from tbl_pf_saturation t
+            left join tbl_taz_constrast a on t.tazid = a.tazid
+            left join TBL_HOTTAZ_PF_SATURATION b on a.tazid = b.hot_taz
+            where 1=1
+            and a.hotspot_fid=#{fid}
+            and to_number(to_char(t.timestamp,'yyyymmdd'))=#{time}
+            order by timestamp
+            ) t
+    </select>
+    <select id="getHotspotFlowStatus" parameterType="map" resultType="map">
+        select a.pf "pf",a.pf_saturation "pf_saturation",a.service_level "service_level" from TBL_PF_SATURATION a
+        left join tbl_taz_constrast b on a.tazid = b.tazid
+        where 1=1
+        and b.hotspot_fid = #{fid}
+        and to_number(to_char(a.timestamp,'yyyymmdd'))=#{time}
+        and (substr(to_char(a.timestamp,'yyyymmddhh24miss'),9,2)*4+substr(to_char(a.timestamp,'yyyymmddhh24miss'),11,2)/15+1) = #{period15}
+    </select>
+
+    <select id="getKeyAreaInfo" resultType="com.sutpc.its.dto.KeyAreaInfoDto">
+        select
+        a.tazid as "areaId",
+        b.hotspot_fid as "hotSpotId",
+        c.tazname as "name",
+        a.pf as "pf",
+        a.pf_saturation as "saturation",
+        a.service_level as "level"
+        from TBL_PF_SATURATION a
+        left join tbl_taz_constrast b on a.tazid = b.tazid
+        left join tbl_hottaz_pf_saturation c on a.tazid = c.hot_taz
+        where 1=1
+        and b.hotspot_fid in (39,23,19,51,54,15,24,33,122,77,68,69,18)
+        and to_number(to_char(a.timestamp,'yyyymmdd'))=#{time}
+        and (substr(to_char(a.timestamp,'yyyymmddhh24miss'),9,2)*4+substr(to_char(a.timestamp,'yyyymmddhh24miss'),11,2)/15+1) = #{period15}
+        order by a.pf desc
+    </select>
+    <select id="getPfChangeChartData" resultType="com.sutpc.its.dto.PfChangeDto">
+        select (substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 9, 2) * 4 +
+       substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 11, 2) / 15 + 1) as "period",
+       pf as "pf"
+  from TBL_PF_SATURATION a
+ where tazid = #{tazid}
+   and to_number(to_char(a.timestamp, 'yyyymmdd')) = #{time}
+ order by timestamp asc
+    </select>
+    <select id="getPresentPf" resultType="com.sutpc.its.dto.PfChangeDto">
+        select (substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 9, 2) * 4 +
+       substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 11, 2) / 15 + 1) as "period",
+       pf as "pf"
+  from TBL_PF_SATURATION a
+ where tazid = #{tazid}
+   and to_number(to_char(a.timestamp, 'yyyymmdd')) = #{time}
+   and (substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 9, 2) * 4 +
+       substr(to_char(a.timestamp, 'yyyymmddhh24miss'), 11, 2) / 15 + 1) = #{period15}
+
+    </select>
+    <select id="getKeyAreaInfoLikeName" resultType="com.sutpc.its.dto.KeyAreaLikeDto">
+    select distinct a.hot_taz as "areaId",a.tazname "name" from tbl_hottaz_pf_saturation a
+     left join tbl_taz_constrast b on a.hot_taz = b.tazid
+     where a.tazname like '%'||#{name}||'%' and b.hotspot_fid in (39,23,19,51,54,15,24,33,122,77,68,69,18)
+
+  </select>
+    <select id="getFlowsGroupByStatus" resultType="com.sutpc.its.dto.FlowsDistributionDto">
+    select t.service_level as "status",sum(t.pf) as "flows"  from TBL_PF_SATURATION t
+  where  to_number(to_char(t.timestamp,'yyyymmdd'))=#{time}
+  and (substr(to_char(t.timestamp,'yyyymmddhh24miss'),9,2)*4+substr(to_char(t.timestamp,'yyyymmddhh24miss'),11,2)/15+1) = #{period15}
+  group by t.service_level
+  </select>
+
+</mapper>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleDistrictMainRoadDao">
+  <select id="getMainRoadSpeed" resultType="double">
+    select coalesce(avg(b.speed), 0) speed
+    from (select * from T_TPI_DISTRICT_REPORT_ROAD where district_fid = #{districtFid}) a
+    left join (select *
+    from t_tpi_road_speed
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) b
+    on a.road_fid = b.road_fid
+    inner join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on b.fdate = c.fdate
+  </select>
+  <select id="getMainRoadInfo" resultType="com.sutpc.its.dto.WorkDayPeakMainRoadDto">
+    select a.road_fid "id", a.road_name "roadName", a.dir_name "dirName", avg(b.speed) "speed"
+    from (select * from T_TPI_DISTRICT_REPORT_ROAD where district_fid = #{districtFid}) a
+    left join (select *
+    from t_tpi_road_speed
+    where fdate between #{startDate} and #{endDate}
+    and (period between 85 and 108 or period between 211 and 234)) b
+    on a.road_fid = b.road_fid
+    inner join (select *
+    from t_base_date_list
+    where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) c on b.fdate = c.fdate
+    group by a.road_fid, a.road_name, a.dir_name
+  </select>
+</mapper>

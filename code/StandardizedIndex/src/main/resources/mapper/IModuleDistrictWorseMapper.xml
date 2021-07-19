@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sutpc.its.dao.IModuleDistrictWorseDao">
+
+  <select id="getRoadSectionList" resultType="com.sutpc.its.dto.RoadSectionInfoDto">
+    select b.fid "id",
+    b.fname "name",
+    b.roadsect_from "from",
+    b.roadsect_to "to",
+    c.fname "dirName",
+    b.road_type_fid "typeId",
+    sum(a.total_length) / sum(a.total_time) * 3.6 "speed"
+    from (select *
+    from t_tpi_roadsect_speed t
+    where (t.period between 85 and 108 or t.period between 211 and 234)
+    and t.fdate between #{startDate} and #{endDate}) a
+    inner join (select *
+    from t_base_roadsect t
+    where t.district_fid = #{districtFid}
+    and t.road_type_fid in (1,2,3,4,5) )b on a.roadsect_fid = b.fid
+    left join t_base_direction c on b.dir_fid = c.fid
+    inner join (select * from t_base_date_list where fdate between #{startDate} and #{endDate}
+    and is_workday = 1) d on a.fdate = d.fdate
+    group by b.fid,
+    b.fname,
+    b.roadsect_from,
+    b.roadsect_to,
+    c.fname,
+    b.road_type_fid
+  </select>
+</mapper>
